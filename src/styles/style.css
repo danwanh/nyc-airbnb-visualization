@@ -1,0 +1,14 @@
+body {
+  font-family: Arial;
+  margin: 20px;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+}
+
+svg {
+  background: #f9f9f9;
+}
