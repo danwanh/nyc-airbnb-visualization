@@ -27,14 +27,23 @@ export function responseLabel(key) {
 }
 
 /**
- * @param {{ roomType?: string, borough?: string }} f - Use 'all' or omit for no filter.
+/**
+ * @param {{ roomType?: string, borough?: string, excludeZero?: boolean }} f
  */
 export function filterListings(rows, f = {}) {
   const room = f.roomType ?? 'all';
   const borough = f.borough ?? 'all';
+  const excludeZero = f.excludeZero ?? false;
+
   return rows.filter((row) => {
     if (room !== 'all' && row.room_type !== room) return false;
     if (borough !== 'all' && row.neighbourhood_group_cleansed !== borough) return false;
+    
+    if (excludeZero) {
+      const price = _parsePrice(row.price);
+      if (Number.isFinite(price) && Math.floor(price / 50) * 50 === 0) return false;
+    }
+
     return true;
   });
 }
@@ -128,3 +137,157 @@ export function aggregateReviewScoresByRoomType(rows) {
 }
 
 export { BOROUGHS };
+
+/* ── Heatmap: Listing count × Room Type × Accommodates × Price ── */
+
+export const HEATMAP_ROOMS = ['Entire home/apt', 'Hotel room', 'Private room', 'Shared room'];
+
+export const HEATMAP_ACC_GROUPS = [
+  '1 guest', '2 guests', '3-4 guests', '5-6 guests', '7+ guests',
+];
+
+export const HEATMAP_PRICE_GROUPS = [
+  { label: '$0–$200',     min: 0,    max: 200  },
+  { label: '$200–$400',   min: 200,  max: 400  },
+  { label: '$400–$600',   min: 400,  max: 600  },
+  { label: '$600–$1,000', min: 600,  max: 1000 },
+  { label: '$1,000+',     min: 1000, max: Infinity },
+];
+
+function _accGroupOf(n) {
+  if (n <= 1) return '1 guest';
+  if (n <= 2) return '2 guests';
+  if (n <= 4) return '3-4 guests';
+  if (n <= 6) return '5-6 guests';
+  return '7+ guests';
+}
+
+/**
+ * Variable-width price bins (Option B):
+ *   $0   – $200  → step $50   → 4 bins
+ *   $200 – $500  → step $100  → 3 bins
+ *   $500 – $1000 → step $250  → 2 bins
+ *   $1000+       → 1 overflow bin
+ * Total: 10 bins
+ */
+export const HEATMAP_PRICE_BINS = [0, 50, 100, 150, 200, 300, 400, 500, 750, 1000];
+
+export function priceBinLabel(bin) {
+  const next = { 0:50, 50:100, 100:150, 150:200, 200:300, 300:400, 400:500, 500:750, 750:1000 };
+  if (bin === 1000) return '$1,000+';
+  return `$${bin}–$${next[bin]}`;
+}
+
+function _priceBinOf(price) {
+  if (price < 200)  return Math.floor(price / 50)  * 50;
+  if (price < 500)  return Math.floor(price / 100) * 100;
+  if (price < 1000) return Math.floor(price / 250) * 250;
+  return 1000;
+}
+
+function _parsePrice(v) {
+  return parseFloat(String(v ?? '').replace(/[$,\s]/g, ''));
+}
+
+/** Returns { counts, maxCount, total }
+ *  counts[room][accGroup][priceBin] = number of listings
+ *  priceBin uses variable-width bins (Option B).
+ */
+export function aggregateHeatmap(rows) {
+  const counts = {};
+  for (const r of HEATMAP_ROOMS) {
+    counts[r] = {};
+    for (const a of HEATMAP_ACC_GROUPS) counts[r][a] = {};
+  }
+
+  let total = 0;
+  let maxCount = 0;
+
+  for (const row of rows) {
+    const rt = (row.room_type ?? '').trim();
+    if (!HEATMAP_ROOMS.includes(rt)) continue;
+
+    const acc = parseInt(row.accommodates ?? 0, 10);
+    if (!acc) continue;
+
+    const price = _parsePrice(row.price);
+    if (!Number.isFinite(price) || price < 0) continue;
+
+    const ag  = _accGroupOf(acc);
+    const bin = _priceBinOf(price);
+
+    const prev = counts[rt][ag][bin] ?? 0;
+    counts[rt][ag][bin] = prev + 1;
+    if (prev + 1 > maxCount) maxCount = prev + 1;
+    total++;
+  }
+
+  return { counts, maxCount, total };
+}
+
+
+/** Colors for the preferred room type stacked bar chart (matches Tableau palette). */
+export const ROOM_TYPE_COLORS = {
+  'Entire home/apt': '#b08fa8',
+  'Hotel room':      '#c9b84a',
+  'Private room':    '#2e6b4f',
+  'Shared room':     '#c4622a',
+};
+
+/** Ordered room types for stacking (bottom → top). */
+export const ROOM_TYPE_STACK_ORDER = [
+  'Private room',
+  'Hotel room',
+  'Entire home/apt',
+  'Shared room',
+];
+
+/**
+ * Aggregate number_of_reviews per (borough × room_type) as % of grand total.
+ *
+ * Returns:
+ *   hoods  – boroughs present in data, in declared order
+ *   types  – room types present in data, in stack order
+ *   pct    – { [borough]: { [roomType]: number } }  (% of grand total)
+ *   total  – grand total review count
+ */
+export function aggregatePreferredRoomType(rows) {
+  const pivot = {};
+  for (const b of BOROUGHS) {
+    pivot[b] = {};
+    for (const t of ROOM_TYPE_STACK_ORDER) pivot[b][t] = 0;
+  }
+
+  let total = 0;
+
+  for (const row of rows) {
+    const nb  = (row.neighbourhood_group_cleansed ?? '').trim();
+    const rt  = (row.room_type                    ?? '').trim();
+    const rev = parseFloat(row.number_of_reviews   ?? 0);
+
+    if (!nb || !rt || isNaN(rev)) continue;
+    if (!pivot[nb])     pivot[nb]     = {};
+    if (!pivot[nb][rt]) pivot[nb][rt] = 0;
+
+    pivot[nb][rt] += rev;
+    total         += rev;
+  }
+
+  const hoods = BOROUGHS.filter((b) =>
+    Object.values(pivot[b] ?? {}).some((v) => v > 0)
+  );
+
+  const types = ROOM_TYPE_STACK_ORDER.filter((t) =>
+    hoods.some((b) => (pivot[b]?.[t] ?? 0) > 0)
+  );
+
+  const pct = {};
+  for (const b of hoods) {
+    pct[b] = {};
+    for (const t of types) {
+      pct[b][t] = total > 0 ? (pivot[b][t] / total) * 100 : 0;
+    }
+  }
+
+  return { hoods, types, pct, total };
+}

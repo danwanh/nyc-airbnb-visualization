@@ -21,6 +21,10 @@
     <span class="filter-label">Borough</span>
     <select id="filter-borough" class="filter-select" aria-label="Filter by borough"></select>
   </label>
+  <label class="filter-field" style="flex-direction:row; align-items:center; cursor:pointer;">
+    <input type="checkbox" id="filter-exclude-0" style="margin-right:6px;" />
+    <span class="filter-label" style="margin-bottom:0;">Exclude $0</span>
+  </label>
   <button type="button" id="filter-reset" class="filter-reset">Reset filters</button>
 </div>
 
@@ -56,6 +60,52 @@
       <div class="legend-item"><div class="legend-dot" style="background:#be185d"></div> Private room</div>
       <div class="legend-item"><div class="legend-dot" style="background:#0f766e"></div> Shared room</div>
     </div>
+  </div>
+</div>
+
+</div>
+
+<!-- SECOND ROW OF CHARTS -->
+<div class="charts-grid" style="margin-top:20px;">
+  <!-- CHART 3: Preferred room type -->
+  <div class="chart-card">
+    <div class="chart-header">
+      <div class="chart-title">Preferred room type</div>
+      <div class="chart-subtitle">Borough — % of Total Reviews</div>
+    </div>
+    <svg id="chart3" aria-label="Stacked bar chart: preferred room type by borough"></svg>
+    <div class="legend" id="chart3-legend"></div>
+  </div>
+
+  <!-- CHART 4: Heatmap — Listing count by Room Type × Accommodates × Price -->
+  <div class="chart-card" style="display:flex; flex-direction:column; min-width:0;">
+    <div class="chart-header" style="display:flex; justify-content:space-between; align-items:flex-start;">
+      <div>
+        <div class="chart-title">Listing count by Room Type, Accommodates &amp; Price</div>
+        <div class="chart-subtitle">Total Listings by Price Range, Room Type &amp; Accommodates</div>
+      </div>
+      <div class="heatmap-controls" style="display:flex; gap:12px; align-items:center; margin-top: -4px;">
+        <label class="filter-field" style="margin-bottom:0;">
+          <span class="filter-label">Accommodates</span>
+          <select id="filter-acc" class="filter-select" aria-label="Filter by accommodates">
+            <option value="all">All</option>
+            <option value="1 guest">1 guest</option>
+            <option value="2 guests">2 guests</option>
+            <option value="3-4 guests">3-4 guests</option>
+            <option value="5-6 guests">5-6 guests</option>
+            <option value="7+ guests">7+ guests</option>
+          </select>
+        </label>
+        <label class="filter-field" style="margin-bottom:0;">
+          <span class="filter-label">Price Bin</span>
+          <select id="filter-price-bin" class="filter-select" aria-label="Filter by price bin">
+            <option value="all">All</option>
+          </select>
+        </label>
+        <button type="button" id="filter-heatmap-reset" class="filter-reset">Reset</button>
+      </div>
+    </div>
+    <div id="chart4" style="flex:1; min-height:0;"></div>
   </div>
 </div>
 </div>
