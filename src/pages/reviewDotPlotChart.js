@@ -1,7 +1,7 @@
 import * as d3 from 'd3';
-import { ROOM_TYPES } from './aggregates.js';
-import { chartTooltip } from './tooltip.js';
-import { CHROME } from './palette.js';
+import { ROOM_TYPES } from '../utils/aggregates.js';
+import { chartTooltip } from '../components/tooltip.js';
+import { CHROME } from '../utils/palette.js';
 
 /**
  * Dot plot: mean review sub-scores by dimension and room type.

@@ -1,7 +1,7 @@
 import * as d3 from 'd3';
-import { STACK_KEYS, responseLabel } from './aggregates.js';
-import { chartTooltip } from './tooltip.js';
-import { RESPONSE_COLORS, SELECTION_FILL, CHROME } from './palette.js';
+import { STACK_KEYS, responseLabel } from '../utils/aggregates.js';
+import { chartTooltip } from '../components/tooltip.js';
+import { RESPONSE_COLORS, SELECTION_FILL, CHROME } from '../utils/palette.js';
 
 const COLORS = RESPONSE_COLORS;
 
