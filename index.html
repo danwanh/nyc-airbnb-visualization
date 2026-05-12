@@ -1,65 +1,245 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="vi">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Airbnb NYC – D3.js Charts</title>
-  <link rel="stylesheet" href="/src/styles/chart.css" />
-</head>
-<body>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Airbnb NYC – D3.js Charts</title>
+    <link rel="stylesheet" href="/src/styles/chart.css" />
+    <style>
+      .section-title {
+        font-size: 22px;
+        font-weight: 600;
+        color: var(--text);
+        margin: 32px 0 16px;
+        letter-spacing: -0.02em;
+      }
+      .section-title span {
+        font-size: 11px;
+        font-weight: 500;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: var(--text-muted);
+        margin-right: 10px;
+        vertical-align: middle;
+      }
+      .borough-filter-bar {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 8px;
+        margin-bottom: 18px;
+        padding: 12px 16px;
+        background: var(--bg-card);
+        border: 1px solid var(--border-card);
+        border-radius: 12px;
+        box-shadow: var(--shadow);
+      }
+      .borough-filter-bar .filter-label {
+        font-size: 11px;
+        font-weight: 600;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        color: var(--text-muted);
+        margin-right: 4px;
+      }
+      .boro-btn {
+        font-size: 12px;
+        font-family: inherit;
+        border: 1px solid var(--border-card);
+        background: #f8fafc;
+        color: var(--text-soft);
+        border-radius: 20px;
+        padding: 5px 14px;
+        cursor: pointer;
+        transition: all 0.16s;
+      }
+      .boro-btn:hover {
+        background: #f1f5f9;
+        border-color: #94a3b8;
+      }
+      .boro-btn.active {
+        background: var(--accent);
+        color: #fff;
+        border-color: var(--accent);
+      }
+      .charts-grid-full {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 20px;
+      }
+      .chart-card svg {
+        display: block;
+      }
+      /* Tooltip */
+      .s-tooltip {
+        position: fixed;
+        z-index: 9999;
+        display: none;
+        padding: 9px 12px;
+        font-size: 12px;
+        line-height: 1.5;
+        background: #fff;
+        border: 1px solid #e2e8f0;
+        border-radius: 8px;
+        box-shadow: 0 8px 24px rgba(15, 23, 42, 0.12);
+        pointer-events: none;
+        max-width: 240px;
+      }
+      /* Sheet 13 height */
+      #chart13 {
+        height: 380px;
+      }
+      /* Sheet 12 height */
+      .sheet12-wrap {
+        height: 500px;
+        overflow: hidden;
+      }
+      #chart12 {
+        width: 100%;
+        height: 100%;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="page-shell">
+      <h1>Airbnb NYC · Dashboard</h1>
+      <p class="dashboard-title">Host Response &amp; Review Analytics</p>
 
-<div class="page-shell">
-<h1>Airbnb NYC · Dashboard</h1>
-<p class="dashboard-title">Host Response &amp; Review Analytics</p>
+      <!-- Existing filters -->
+      <div class="filters-bar" id="filters">
+        <label class="filter-field">
+          <span class="filter-label">Room type</span>
+          <select
+            id="filter-room"
+            class="filter-select"
+            aria-label="Filter by room type"
+          ></select>
+        </label>
+        <label class="filter-field">
+          <span class="filter-label">Borough</span>
+          <select
+            id="filter-borough"
+            class="filter-select"
+            aria-label="Filter by borough"
+          ></select>
+        </label>
+        <button type="button" id="filter-reset" class="filter-reset">
+          Reset filters
+        </button>
+      </div>
 
-<div class="filters-bar" id="filters">
-  <label class="filter-field">
-    <span class="filter-label">Room type</span>
-    <select id="filter-room" class="filter-select" aria-label="Filter by room type"></select>
-  </label>
-  <label class="filter-field">
-    <span class="filter-label">Borough</span>
-    <select id="filter-borough" class="filter-select" aria-label="Filter by borough"></select>
-  </label>
-  <button type="button" id="filter-reset" class="filter-reset">Reset filters</button>
-</div>
+      <p id="chart-status" class="chart-status"></p>
 
-<p id="chart-status" class="chart-status"></p>
+      <!-- Existing chart grid -->
+      <div class="charts-grid">
+        <!-- CHART 1 -->
+        <div class="chart-card">
+          <div class="chart-header">
+            <div class="chart-title">Host Response Time by Borough</div>
+            <div class="chart-subtitle">
+              % of listings per borough · Unknown response excluded · Click a
+              row to filter chart 2
+            </div>
+          </div>
+          <svg id="chart1"></svg>
+          <div class="legend">
+            <div class="legend-item">
+              <div class="legend-rect" style="background: #059669"></div>
+              Within an hour
+            </div>
+            <div class="legend-item">
+              <div class="legend-rect" style="background: #0891b2"></div>
+              Within a few hours
+            </div>
+            <div class="legend-item">
+              <div class="legend-rect" style="background: #ea580c"></div>
+              Within a day
+            </div>
+            <div class="legend-item">
+              <div class="legend-rect" style="background: #4f46e5"></div>
+              A few days or more
+            </div>
+          </div>
+        </div>
 
-<div class="charts-grid">
-  <!-- CHART 1 -->
-  <div class="chart-card">
-    <div class="chart-header">
-      <div class="chart-title">Host Response Time by Borough</div>
-      <div class="chart-subtitle">% of listings per borough · Unknown response excluded · Click a row to filter chart 2</div>
+        <!-- CHART 2 -->
+        <div class="chart-card" id="chart2-card">
+          <div class="chart-header">
+            <div class="chart-title">
+              Average Review Scores by Dimension &amp; Room Type
+            </div>
+            <div class="chart-subtitle">
+              Means · Median line · Hover dots · Borough from chart 1 or
+              dropdown
+            </div>
+            <p id="chart2-borough-hint" class="chart-hint" hidden></p>
+          </div>
+          <svg id="chart2"></svg>
+          <div class="legend">
+            <div class="legend-item">
+              <div class="legend-dot" style="background: #2563eb"></div>
+              Entire home/apt
+            </div>
+            <div class="legend-item">
+              <div class="legend-dot" style="background: #c2410c"></div>
+              Hotel room
+            </div>
+            <div class="legend-item">
+              <div class="legend-dot" style="background: #be185d"></div>
+              Private room
+            </div>
+            <div class="legend-item">
+              <div class="legend-dot" style="background: #0f766e"></div>
+              Shared room
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ─── Sheet 12 & 13 section ──────────────────────────────── -->
+      <p class="section-title">
+        <span>Sheet 12 &amp; 13</span>Listing Density &amp; Median Price
+      </p>
+
+      <div class="charts-grid-full">
+        <!-- Sheet 12: Bubble Map -->
+        <div class="chart-card">
+          <div class="chart-header">
+            <div class="chart-title">
+              Sheet 12 · Listing Density by Neighbourhood
+            </div>
+            <div class="chart-subtitle">
+              Bubble size = CNT(id) · Color = neighbourhood_group ·
+              Scroll-to-zoom · Double-click to reset
+            </div>
+          </div>
+          <div class="sheet12-wrap">
+            <svg id="chart12"></svg>
+          </div>
+          <div class="legend" id="sheet12-legend"></div>
+        </div>
+
+        <!-- Sheet 13: Bar Chart -->
+        <div class="chart-card">
+          <div class="chart-header">
+            <div class="chart-title">
+              Sheet 13 · Median Price by Neighbourhood
+            </div>
+            <div class="chart-subtitle">
+              X = neighbourhood_cleansed · Y = MEDIAN(price) · Scroll
+              horizontally for all bars
+            </div>
+          </div>
+          <svg id="chart13"></svg>
+        </div>
+      </div>
     </div>
-    <svg id="chart1"></svg>
-    <div class="legend">
-      <div class="legend-item"><div class="legend-rect" style="background:#059669"></div> Within an hour</div>
-      <div class="legend-item"><div class="legend-rect" style="background:#0891b2"></div> Within a few hours</div>
-      <div class="legend-item"><div class="legend-rect" style="background:#ea580c"></div> Within a day</div>
-      <div class="legend-item"><div class="legend-rect" style="background:#4f46e5"></div> A few days or more</div>
-    </div>
-  </div>
+    <!-- /page-shell -->
 
-  <!-- CHART 2 -->
-  <div class="chart-card" id="chart2-card">
-    <div class="chart-header">
-      <div class="chart-title">Average Review Scores by Dimension &amp; Room Type</div>
-      <div class="chart-subtitle">Means · Median line · Hover dots · Borough from chart 1 or dropdown</div>
-      <p id="chart2-borough-hint" class="chart-hint" hidden></p>
-    </div>
-    <svg id="chart2"></svg>
-    <div class="legend">
-      <div class="legend-item"><div class="legend-dot" style="background:#2563eb"></div> Entire home/apt</div>
-      <div class="legend-item"><div class="legend-dot" style="background:#c2410c"></div> Hotel room</div>
-      <div class="legend-item"><div class="legend-dot" style="background:#be185d"></div> Private room</div>
-      <div class="legend-item"><div class="legend-dot" style="background:#0f766e"></div> Shared room</div>
-    </div>
-  </div>
-</div>
-</div>
+    <!-- Tooltips -->
+    <div id="sheet12-tip" class="s-tooltip"></div>
+    <div id="sheet13-tip" class="s-tooltip"></div>
 
-<script type="module" src="/src/main.js"></script>
-</body>
+    <script type="module" src="/src/main.js"></script>
+  </body>
 </html>
