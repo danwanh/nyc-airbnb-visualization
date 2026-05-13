@@ -291,3 +291,74 @@ export function aggregatePreferredRoomType(rows) {
 
   return { hoods, types, pct, total };
 }
+
+/* ── Chart 5: Rating Distribution (Pie chart) ── */
+
+/**
+ * Classify review_scores_rating into 3 groups: high (≥4.5), mid (4.0–4.5), low (<4.0).
+ * Rows with empty / NaN rating are excluded.
+ *
+ * @param {object[]} rows – raw CSV rows (already filtered externally if needed)
+ * @returns {Array<{ group: string, key: string, count: number }>}
+ */
+export function aggregateRatingDistribution(rows) {
+  let high = 0;
+  let mid = 0;
+  let low = 0;
+
+  for (const row of rows) {
+    const raw = row.review_scores_rating;
+    if (raw === '' || raw == null) continue;
+    const v = typeof raw === 'number' ? raw : parseFloat(String(raw).trim());
+    if (!Number.isFinite(v)) continue;
+
+    if (v >= 4.5) high++;
+    else if (v >= 4.0) mid++;
+    else low++;
+  }
+
+  return [
+    { group: 'Cao (≥4.5)', key: 'high', count: high },
+    { group: 'Trung (4.0–4.5)', key: 'mid', count: mid },
+    { group: 'Thấp (<4.0)', key: 'low', count: low },
+  ];
+}
+
+/* ── Chart 6: Instant Bookable by Borough × Room Type ── */
+
+/**
+ * Aggregate listing count grouped by room_type → neighbourhood_group_cleansed → instant_bookable.
+ *
+ * @param {object[]} rows – raw CSV rows
+ * @returns {{ roomTypes: string[], boroughs: string[], data: object }}
+ *   data[roomType][borough] = { instant: N, notInstant: N, total: N }
+ */
+export function aggregateInstantBookable(rows) {
+  const roomTypes = ['Entire home/apt', 'Hotel room', 'Private room', 'Shared room'];
+  const boroughs = BOROUGHS;
+
+  // Initialise
+  const data = {};
+  for (const rt of roomTypes) {
+    data[rt] = {};
+    for (const b of boroughs) {
+      data[rt][b] = { instant: 0, notInstant: 0, total: 0 };
+    }
+  }
+
+  for (const row of rows) {
+    const rt = (row.room_type ?? '').trim();
+    const nb = (row.neighbourhood_group_cleansed ?? '').trim();
+    if (!data[rt] || !data[rt][nb]) continue;
+
+    const ib = String(row.instant_bookable ?? '').trim().toLowerCase();
+    if (ib === 't' || ib === '1' || ib === 'true') {
+      data[rt][nb].instant++;
+    } else {
+      data[rt][nb].notInstant++;
+    }
+    data[rt][nb].total++;
+  }
+
+  return { roomTypes, boroughs, data };
+}

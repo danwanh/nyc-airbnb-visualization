@@ -11,11 +11,15 @@ import {
   ROOM_TYPE_STACK_ORDER,
   HEATMAP_PRICE_BINS,
   priceBinLabel,
+  aggregateRatingDistribution,
+  aggregateInstantBookable,
 } from './utils/aggregates.js';
 import { renderResponseStack } from './pages/responseStackChart.js';
 import { renderReviewDotPlot } from './pages/reviewDotPlotChart.js';
 import { renderStackBarChart } from './pages/stackBarChart.js';
 import { renderHeatmap } from './pages/heatmapChart.js';
+import { renderRatingPie } from './pages/ratingPieChart.js';
+import { renderInstantBookableChart } from './pages/instantBookableChart.js';
 import { chartTooltip } from './components/tooltip.js';
 
 /* Heatmap data is pre-computed once and reused (filters are internal to the component) */
@@ -119,6 +123,10 @@ function updateCharts() {
   renderStackBarChart('#chart3', preferredData);
   buildChart3Legend(preferredData.types);
   
+  // Chart 5 - Rating Pie (uses borough AND roomType)
+  const pieData = aggregateRatingDistribution(r2);
+  renderRatingPie('#chart5', pieData);
+
   // Chart 4 - Heatmap uses r1 (filtered by roomType only) + its own internal controls
   updateChart4();
 }
@@ -183,6 +191,16 @@ async function main() {
     });
 
     updateCharts();
+
+    // ── Chart 6: Instant Bookable (static overview, no filter) ──
+    function updateChart6() {
+      if (!allRows) return;
+      const ibData = aggregateInstantBookable(allRows);
+      renderInstantBookableChart('#chart6', ibData);
+    }
+
+    updateChart6();
+
   } catch (e) {
     console.error(e);
     setStatus(
