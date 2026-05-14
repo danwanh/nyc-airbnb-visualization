@@ -10,6 +10,28 @@ function getNode() {
   return n;
 }
 
+function escapeHtml(value) {
+  return String(value ?? '')
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&#039;');
+}
+
+export function formatTooltip({ title, rows = [], note = '' }) {
+  const titleHtml = title ? `<div class="tooltip-title">${escapeHtml(title)}</div>` : '';
+  const rowsHtml = rows
+    .map(({ label, value }) => `
+      <div class="tooltip-row">
+        <span class="tooltip-label">${escapeHtml(label)}</span>
+        <strong class="tooltip-value">${escapeHtml(value)}</strong>
+      </div>`)
+    .join('');
+  const noteHtml = note ? `<div class="tooltip-note">${escapeHtml(note)}</div>` : '';
+  return `${titleHtml}<div class="tooltip-grid">${rowsHtml}</div>${noteHtml}`;
+}
+
 export const chartTooltip = {
   show(html, clientX, clientY) {
     const t = getNode();

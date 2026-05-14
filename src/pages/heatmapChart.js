@@ -3,12 +3,11 @@ import {
   HEATMAP_ACC_GROUPS,
   HEATMAP_PRICE_BINS,
   priceBinLabel,
-} from '../utils/aggregates.js';
-import { chartTooltip } from '../components/tooltip.js';
-
+} from "../utils/aggregates.js";
+import { chartTooltip, formatTooltip } from "../components/tooltip.js";
 
 function heatBg(val, max) {
-  if (val === 0) return 'transparent';
+  if (val === 0) return "transparent";
   const t = Math.pow(val / max, 0.5);
   const r = 255;
   const g = Math.round(255 - t * (255 - 130));
@@ -17,145 +16,156 @@ function heatBg(val, max) {
 }
 
 function heatText(val, max) {
-  if (val === 0) return '#b4b2a9';
-  return (val / max) > 0.55 ? '#4A1B0C' : '#2c2c2a';
+  if (val === 0) return "#94a3b8";
+  return val / max > 0.55 ? "#4a1b0c" : "#1f2937";
 }
 
+function normalizeFilter(filter, fallback) {
+  if (Array.isArray(filter)) return filter;
+  if (!filter || filter === "all") return fallback;
+  return [filter];
+}
 
-/**
- * Render the heatmap into a <div> container using HTML Table.
- *
- * @param {string}  containerSelector
- * @param {{ counts, maxCount, total }} data
- * @param {{ roomFilter: string, accFilter: string, excludeZero: boolean }} options
- */
-export function renderHeatmap(containerSelector, data, options = {}) {
-  const root = document.querySelector(containerSelector);
-  if (!root) return;
-  root.innerHTML = '';
-
-  if (!data || !data.counts) {
-    root.textContent = 'No data.';
-    return;
-  }
-
-  const roomFilter = options.roomFilter || 'all';
-  const accFilter = options.accFilter || 'all';
-  const priceBinFilter = options.priceBinFilter || 'all';
-
-  /* ── Table Container ── */
-  const tableWrap = document.createElement('div');
-  tableWrap.className = 'heatmap-table-wrap';
-  root.appendChild(tableWrap);
-
-  /* ── Legend ── */
-  const legendEl = document.createElement('div');
-  legendEl.className = 'heatmap-legend';
+function renderLegend(root) {
+  const legendEl = document.createElement("div");
+  legendEl.className = "heatmap-legend";
   legendEl.innerHTML = `
     <span>Low</span>
     <div class="heatmap-legend-bar" id="hm-legend-bar"></div>
     <span>High</span>`;
   root.appendChild(legendEl);
 
-  const legendBar = legendEl.querySelector('#hm-legend-bar');
+  const legendBar = legendEl.querySelector("#hm-legend-bar");
   legendBar.innerHTML = Array.from({ length: 20 }, (_, i) => {
-    const bg = heatBg(i / 19, 1);
-    return `<span style="background:${bg || '#f1efe8'};"></span>`;
-  }).join('');
+    const bg = heatBg(i + 1, 20);
+    return `<span style="background:${bg};"></span>`;
+  }).join("");
+}
 
-  /* ── Main render logic ── */
-    const rooms = Array.isArray(roomFilter)
-      ? (roomFilter.length > 0 ? roomFilter : HEATMAP_ROOMS)
-      : (roomFilter === 'all' ? HEATMAP_ROOMS : [roomFilter]);
+/**
+ * Render the heatmap into a div container using an HTML table.
+ */
+export function renderHeatmap(containerSelector, data, options = {}) {
+  const root = document.querySelector(containerSelector);
+  if (!root) return;
+  root.innerHTML = "";
 
-    const accGroups = Array.isArray(accFilter)
-      ? (accFilter.length > 0 ? accFilter : HEATMAP_ACC_GROUPS)
-      : (accFilter === 'all' ? HEATMAP_ACC_GROUPS : [accFilter]);
+  if (!data || !data.counts) {
+    root.textContent = "No data.";
+    return;
+  }
 
-    // Use the fixed variable-width bins
-    let allBins = [...HEATMAP_PRICE_BINS];
+  const rooms = normalizeFilter(options.roomFilter, HEATMAP_ROOMS);
+  const accGroups = normalizeFilter(options.accFilter, HEATMAP_ACC_GROUPS);
+  const selectedCell = options.selectedCell ?? null;
+  const onCellClick = options.onCellClick;
+  let bins = [...HEATMAP_PRICE_BINS];
 
-    if (Array.isArray(priceBinFilter)) {
-      if (priceBinFilter.length > 0) {
-        const selectedBins = priceBinFilter.map(v => parseInt(v, 10));
-        allBins = allBins.filter(b => selectedBins.includes(b));
+  if (Array.isArray(options.priceBinFilter)) {
+    const selectedBins = options.priceBinFilter.map((v) => parseInt(v, 10));
+    bins = bins.filter((b) => selectedBins.includes(b));
+  } else if (options.priceBinFilter && options.priceBinFilter !== "all") {
+    const targetBin = parseInt(options.priceBinFilter, 10);
+    bins = bins.filter((b) => b === targetBin);
+  }
+
+  const tableWrap = document.createElement("div");
+  tableWrap.className = "heatmap-table-wrap";
+  root.appendChild(tableWrap);
+
+  if (!rooms.length || !accGroups.length || !bins.length) {
+    tableWrap.innerHTML =
+      '<div class="heatmap-empty">Select at least one room type, accommodates group, and price bin.</div>';
+    return;
+  }
+
+  let localMax = 0;
+  rooms.forEach((room) => {
+    accGroups.forEach((acc) => {
+      bins.forEach((bin) => {
+        const val = data.counts[room]?.[acc]?.[bin] ?? 0;
+        if (val > localMax) localMax = val;
+      });
+    });
+  });
+  if (localMax === 0) localMax = 1;
+
+  let html = '<table class="heatmap-table"><thead><tr>';
+  html += '<th class="col-type">Room Type</th>';
+  html += '<th class="col-acc">Accommodates</th>';
+  bins.forEach((bin) => {
+    html += `<th>${priceBinLabel(bin)}</th>`;
+  });
+  html += "</tr></thead><tbody>";
+
+  rooms.forEach((room) => {
+    accGroups.forEach((acc, ai) => {
+      html += "<tr>";
+      if (ai === 0) {
+        html += `<td class="type-label" rowspan="${accGroups.length}">${room}</td>`;
       }
-    } else if (priceBinFilter !== 'all') {
-      const targetBin = parseInt(priceBinFilter, 10);
-      allBins = allBins.filter(b => b === targetBin);
-    }
+      html += `<td class="acc-label">${acc}</td>`;
 
-    // Re-calculate max for the current filtered view to improve color contrast
-    let localMax = 0;
-    rooms.forEach(room => {
-      accGroups.forEach(acc => {
-        allBins.forEach(bin => {
-          const val = data.counts[room]?.[acc]?.[bin] ?? 0;
-          if (val > localMax) localMax = val;
-        });
+      bins.forEach((bin) => {
+        const val = data.counts[room]?.[acc]?.[bin] ?? 0;
+        const bg = heatBg(val, localMax);
+        const col = heatText(val, localMax);
+        const txt = val > 0 ? val.toLocaleString() : "";
+        const isSelected =
+          selectedCell &&
+          selectedCell.room === room &&
+          selectedCell.acc === acc &&
+          selectedCell.bin === bin;
+        const cellClass = [
+          isSelected ? "is-selected" : "",
+          selectedCell && !isSelected ? "is-dimmed" : "",
+        ]
+          .filter(Boolean)
+          .join(" ");
+
+        html += `<td class="${cellClass}" style="background:${bg};color:${col};"
+                     data-room="${room}" data-acc="${acc}" data-bin="${bin}" data-val="${val}">
+                  ${txt}
+                 </td>`;
       });
+
+      html += "</tr>";
     });
-    if (localMax === 0) localMax = 1;
+  });
 
-    let html = '<table class="heatmap-table"><thead><tr>';
-    html += '<th class="col-type">Room Type</th>';
-    html += '<th class="col-acc">Accommodates</th>';
-    allBins.forEach(bin => { html += `<th>${priceBinLabel(bin)}</th>`; });
-    html += '</tr></thead><tbody>';
+  html += "</tbody></table>";
+  tableWrap.innerHTML = html;
+  renderLegend(root);
 
-    const colTotals = allBins.map(() => 0);
-
-    rooms.forEach(room => {
-      accGroups.forEach((acc, ai) => {
-        html += '<tr>';
-        if (ai === 0) {
-          html += `<td class="type-label" rowspan="${accGroups.length}">${room}</td>`;
-        }
-        html += `<td class="acc-label">${acc}</td>`;
-        
-        allBins.forEach((bin, ci) => {
-          const val = data.counts[room]?.[acc]?.[bin] ?? 0;
-          colTotals[ci] += val;
-          const bg = heatBg(val, localMax);
-          const col = heatText(val, localMax);
-          const txt = val > 0 ? val.toLocaleString() : '';
-          
-          // Data attributes for tooltip
-          html += `<td style="background:${bg};color:${col};" 
-                       data-room="${room}" data-acc="${acc}" data-bin="${bin}" data-val="${val}">
-                    ${txt}
-                   </td>`;
-        });
-        html += '</tr>';
-      });
+  const tooltipFor = (room, acc, bin, val) =>
+    formatTooltip({
+      title: "Heatmap cell",
+      rows: [
+        { label: "accommodates_group", value: acc },
+        { label: "room_type", value: room },
+        { label: "price", value: priceBinLabel(bin) },
+        { label: "Number of listings", value: val.toLocaleString() },
+      ],
     });
 
-    html += '</tbody></table>';
+  tableWrap.querySelectorAll("tbody td[data-val]").forEach((cell) => {
+    const val = parseInt(cell.getAttribute("data-val") || "0", 10);
+    const room = cell.getAttribute("data-room");
+    const acc = cell.getAttribute("data-acc");
+    const bin = parseInt(cell.getAttribute("data-bin"), 10);
+    cell.style.cursor = onCellClick ? "pointer" : "default";
 
-    tableWrap.innerHTML = html;
-
-    // Attach tooltips
-    const cells = tableWrap.querySelectorAll('tbody td[data-val]');
-    cells.forEach(cell => {
-      const val = parseInt(cell.getAttribute('data-val') || '0', 10);
-      if (val === 0) return;
-      
-      const room = cell.getAttribute('data-room');
-      const acc = cell.getAttribute('data-acc');
-      const bin = parseInt(cell.getAttribute('data-bin'), 10);
-      
-      cell.addEventListener('mouseenter', (e) => {
-        chartTooltip.show(
-          `<div style="display:grid; grid-template-columns: auto auto; gap: 4px 16px; text-align: left;">
-            <span style="color:#6b6b67">Accommodates:</span> <strong>${acc}</strong>
-            <span style="color:#6b6b67">Room Type:</span> <strong>${room}</strong>
-            <span style="color:#6b6b67">Price Range:</span> <strong>${priceBinLabel(bin)}</strong>
-            <span style="color:#6b6b67">Total Listings:</span> <strong>${val.toLocaleString()}</strong>
-          </div>`,
-          e.clientX, e.clientY
-        );
-      });
-      cell.addEventListener('mousemove', (e) => chartTooltip.move(e.clientX, e.clientY));
-      cell.addEventListener('mouseleave', () => chartTooltip.hide());
+    cell.addEventListener("mouseenter", (e) => {
+      chartTooltip.show(tooltipFor(room, acc, bin, val), e.clientX, e.clientY);
     });
+    cell.addEventListener("mousemove", (e) =>
+      chartTooltip.move(e.clientX, e.clientY),
+    );
+    cell.addEventListener("mouseleave", () => chartTooltip.hide());
+    cell.addEventListener("click", (e) => {
+      e.stopPropagation();
+      onCellClick?.({ room, acc, bin, value: val });
+      chartTooltip.show(tooltipFor(room, acc, bin, val), e.clientX, e.clientY);
+    });
+  });
 }

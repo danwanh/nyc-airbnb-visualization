@@ -3,14 +3,14 @@
  * X: neighbourhood_cleansed, Y: MEDIAN(price), color = borough
  */
 import * as d3 from "d3";
-import { chartTooltip } from "../components/tooltip.js";
+import { chartTooltip, formatTooltip } from "../components/tooltip.js";
 
 const BOROUGH_COLORS = {
-  Bronx: "#4472c4",
-  Brooklyn: "#ed7d31",
-  Manhattan: "#e04343",
-  Queens: "#70ad47",
-  "Staten Island": "#70ad47",
+  Bronx: "#2563eb",
+  Brooklyn: "#f97316",
+  Manhattan: "#dc2626",
+  Queens: "#16a34a",
+  "Staten Island": "#7c3aed",
 };
 
 function parsePrice(v) {
@@ -26,12 +26,14 @@ function median(arr) {
 
 //** Aggregate rows → [{ neighbourhood, borough, medianPrice, count }] sorted A–Z */
 function aggregateMedianPrice(rows, boroughFilter = "all") {
-  const filtered = (boroughFilter === "all" || (Array.isArray(boroughFilter) && boroughFilter.length === 0))
-    ? rows
-    : rows.filter((r) => {
-        if (Array.isArray(boroughFilter)) return boroughFilter.includes(r.neighbourhood_group_cleansed);
-        return r.neighbourhood_group_cleansed === boroughFilter;
-      });
+  const filtered =
+    boroughFilter === "all"
+      ? rows
+      : rows.filter((r) => {
+          if (Array.isArray(boroughFilter))
+            return boroughFilter.includes(r.neighbourhood_group_cleansed);
+          return r.neighbourhood_group_cleansed === boroughFilter;
+        });
 
   const map = new Map();
   for (const r of filtered) {
@@ -75,34 +77,52 @@ export function renderNeighborhoodBarChart(
   let wrapper = svgEl.closest(".s13-scroll");
   if (!wrapper) {
     wrapper = document.createElement("div");
-    wrapper.className = "s13-scroll";
-    // Ensure the wrapper is a child of the chart card
+    wrapper.className = "s13-scroll chart-scroll";
     const parent = svgEl.parentElement;
     parent.insertBefore(wrapper, svgEl);
     wrapper.appendChild(svgEl);
+  } else {
+    wrapper.classList.add("chart-scroll");
   }
-  
-  // Style the wrapper to ensure scrollbar visibility
-  wrapper.style.cssText = "overflow-x:auto; overflow-y:hidden; width:100%; position:relative; display:block; padding-bottom:15px;";
 
   // Dimensions
   const H = 450; // Height
-  const margin = { top: 30, right: 30, bottom: 140, left: 70 };
+  const margin = { top: 28, right: 140, bottom: 128, left: 64 };
   const iH = H - margin.top - margin.bottom;
 
-  const BAR_W = 45; // Width per bar
+  const BAR_W = 36; // Width per bar
   const parentWidth = wrapper.getBoundingClientRect().width || 700;
-  const iW = Math.max(parentWidth - margin.left - margin.right, data.length * BAR_W);
+  const iW = Math.max(
+    parentWidth - margin.left - margin.right,
+    data.length * BAR_W,
+  );
   const W = iW + margin.left + margin.right;
 
-  const svg = d3.select(svgEl)
+  const svg = d3
+    .select(svgEl)
     .attr("width", W)
     .attr("height", H)
     .style("width", null)
     .style("height", null);
 
   svg.selectAll("*").remove();
-  svg.append("rect").attr("width", W).attr("height", H).attr("fill", "transparent");
+  svg
+    .append("rect")
+    .attr("width", W)
+    .attr("height", H)
+    .attr("fill", "transparent");
+
+  if (!data.length) {
+    svg
+      .append("text")
+      .attr("x", W / 2)
+      .attr("y", H / 2)
+      .attr("text-anchor", "middle")
+      .attr("fill", "#64748b")
+      .attr("font-size", 13)
+      .text("No neighbourhood price data for the current filter.");
+    return;
+  }
 
   const g = svg
     .append("g")
@@ -184,7 +204,7 @@ export function renderNeighborhoodBarChart(
       return d.neighbourhood === selectedNeighborhood ? 1.0 : 0.2;
     })
     .attr("stroke", (d) =>
-      d.neighbourhood === selectedNeighborhood ? "#000" : "none",
+      d.neighbourhood === selectedNeighborhood ? "#0f172a" : "none",
     )
     .attr("stroke-width", (d) =>
       d.neighbourhood === selectedNeighborhood ? 1.5 : 0,
@@ -192,15 +212,23 @@ export function renderNeighborhoodBarChart(
     .style("cursor", "pointer")
     .on("mouseenter", function (event, d) {
       if (!selectedNeighborhood || d.neighbourhood === selectedNeighborhood) {
-         d3.select(this).attr("fill-opacity", 1);
+        d3.select(this).attr("fill-opacity", 1);
       }
-      const html = `
-        <div style="font-weight:600; margin-bottom:4px;">${d.neighbourhood}</div>
-        <div style="font-size:11px; color:#64748b; margin-bottom:4px;">${d.borough}</div>
-        <div style="font-size:13px; font-weight:600; color:#0f172a;">$${Math.round(d.medianPrice).toLocaleString()}</div>
-        <div style="font-size:10px; color:#94a3b8; margin-top:2px;">Median Price</div>
-      `;
-      chartTooltip.show(html, event.clientX, event.clientY);
+      chartTooltip.show(
+        formatTooltip({
+          title: d.neighbourhood,
+          rows: [
+            { label: "Borough", value: d.borough },
+            {
+              label: "Median price",
+              value: `$${Math.round(d.medianPrice).toLocaleString()}`,
+            },
+            { label: "Number of listings", value: d.count.toLocaleString() },
+          ],
+        }),
+        event.clientX,
+        event.clientY,
+      );
     })
     .on("mousemove", (event) => {
       chartTooltip.move(event.clientX, event.clientY);
@@ -214,7 +242,7 @@ export function renderNeighborhoodBarChart(
     })
     .on("click", function (event, d) {
       event.stopPropagation();
-      onNeighborhoodClick?.(d.neighbourhood);
+      onNeighborhoodClick?.(d.neighbourhood, d.borough);
     })
     .transition()
     .duration(500)

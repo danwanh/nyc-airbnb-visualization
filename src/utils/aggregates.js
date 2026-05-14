@@ -27,13 +27,12 @@ export function responseLabel(key) {
 }
 
 /**
- * @param {{ roomType?: string, borough?: string, excludeZero?: boolean, neighborhood?: string }} f
+ * @param {{ roomType?: string, borough?: string, neighborhood?: string }} f
  */
 export function filterListings(rows, f = {}) {
   const room = f.roomType ?? 'all';
   const borough = f.borough ?? 'all';
   const neighborhood = f.neighborhood ?? 'all';
-  const excludeZero = f.excludeZero ?? false;
 
   return rows.filter((row) => {
     if (room !== 'all') {
@@ -52,9 +51,12 @@ export function filterListings(rows, f = {}) {
       }
     }
 
-    if (excludeZero) {
-      const price = _parsePrice(row.price);
-      if (Number.isFinite(price) && Math.floor(price / 50) * 50 === 0) return false;
+    if (neighborhood !== 'all') {
+      if (Array.isArray(neighborhood)) {
+        if (!neighborhood.includes(row.neighbourhood_cleansed)) return false;
+      } else if (row.neighbourhood_cleansed !== neighborhood) {
+        return false;
+      }
     }
 
     return true;
@@ -160,10 +162,10 @@ export const HEATMAP_ACC_GROUPS = [
 ];
 
 export const HEATMAP_PRICE_GROUPS = [
-  { label: '$0–$200', min: 0, max: 200 },
-  { label: '$200–$400', min: 200, max: 400 },
-  { label: '$400–$600', min: 400, max: 600 },
-  { label: '$600–$1,000', min: 600, max: 1000 },
+  { label: '$0-$200', min: 0, max: 200 },
+  { label: '$200-$400', min: 200, max: 400 },
+  { label: '$400-$600', min: 400, max: 600 },
+  { label: '$600-$1,000', min: 600, max: 1000 },
   { label: '$1,000+', min: 1000, max: Infinity },
 ];
 
@@ -188,7 +190,7 @@ export const HEATMAP_PRICE_BINS = [0, 50, 100, 150, 200, 300, 400, 500, 750, 100
 export function priceBinLabel(bin) {
   const next = { 0: 50, 50: 100, 100: 150, 150: 200, 200: 300, 300: 400, 400: 500, 500: 750, 750: 1000 };
   if (bin === 1000) return '$1,000+';
-  return `$${bin}–$${next[bin]}`;
+  return `$${bin}-$${next[bin]}`;
 }
 
 function _priceBinOf(price) {
@@ -228,11 +230,24 @@ export function aggregateHeatmap(rows) {
 
     const ag = _accGroupOf(acc);
     const bin = _priceBinOf(price);
+    const id = String(row.id ?? `${rt}|${ag}|${bin}|${total}`);
 
-    const prev = counts[rt][ag][bin] ?? 0;
-    counts[rt][ag][bin] = prev + 1;
-    if (prev + 1 > maxCount) maxCount = prev + 1;
+    if (!counts[rt][ag][bin]) counts[rt][ag][bin] = new Set();
+    const cellIds = counts[rt][ag][bin];
+    const prev = cellIds.size;
+    cellIds.add(id);
+    if (cellIds.size === prev) continue;
+    if (cellIds.size > maxCount) maxCount = cellIds.size;
     total++;
+  }
+
+  for (const r of HEATMAP_ROOMS) {
+    for (const a of HEATMAP_ACC_GROUPS) {
+      for (const bin of HEATMAP_PRICE_BINS) {
+        const cell = counts[r][a][bin];
+        counts[r][a][bin] = cell instanceof Set ? cell.size : 0;
+      }
+    }
   }
 
   return { counts, maxCount, total };
@@ -335,8 +350,8 @@ export function aggregateRatingDistribution(rows) {
   }
 
   return [
-    { group: 'High (≥4.5)', key: 'high', count: high },
-    { group: 'Mid (4.0–4.5)', key: 'mid', count: mid },
+    { group: 'High (>=4.5)', key: 'high', count: high },
+    { group: 'Mid (4.0-4.5)', key: 'mid', count: mid },
     { group: 'Low (<4.0)', key: 'low', count: low },
   ];
 }
@@ -372,8 +387,8 @@ export function aggregateRatingDistributionByBorough(rows) {
   for (const b of BOROUGHS) {
     const c = result[b];
     out[b] = [
-      { group: 'High (≥4.5)',     key: 'high', count: c.high },
-      { group: 'Mid (4.0–4.5)',   key: 'mid',  count: c.mid  },
+      { group: 'High (>=4.5)',    key: 'high', count: c.high },
+      { group: 'Mid (4.0-4.5)',   key: 'mid',  count: c.mid  },
       { group: 'Low (<4.0)',      key: 'low',  count: c.low  },
     ];
   }
