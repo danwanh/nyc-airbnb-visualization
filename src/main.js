@@ -39,30 +39,73 @@ function setStatus(message, isError = false) {
 }
 
 function fillFilterSelects() {
-  if (filterRoomEl && filterRoomEl.options.length === 0) {
-    filterRoomEl.append(new Option('All room types', 'all'));
+  if (filterRoomEl && filterRoomEl.children.length === 0) {
+    let html = `<label class="checkbox-label">
+      <input type="checkbox" value="all" checked>
+      <strong>(All)</strong>
+    </label>`;
     for (const rt of ROOM_TYPES) {
-      filterRoomEl.append(new Option(rt.label, rt.csv));
+      html += `<label class="checkbox-label"><input type="checkbox" value="${rt.csv}" checked> ${rt.label}</label>`;
     }
+    filterRoomEl.innerHTML = html;
   }
-  if (filterBoroughEl && filterBoroughEl.options.length === 0) {
-    filterBoroughEl.append(new Option('All boroughs', 'all'));
+  if (filterBoroughEl && filterBoroughEl.children.length === 0) {
+    let html = `<label class="checkbox-label">
+      <input type="checkbox" value="all" checked>
+      <strong>(All)</strong>
+    </label>`;
     for (const b of BOROUGHS) {
-      filterBoroughEl.append(new Option(b, b));
+      html += `<label class="checkbox-label"><input type="checkbox" value="${b}" checked> ${b}</label>`;
     }
+    filterBoroughEl.innerHTML = html;
   }
-  const filterPriceBinEl = document.getElementById('filter-price-bin');
-  if (filterPriceBinEl && filterPriceBinEl.options.length <= 1) {
-    for (const b of HEATMAP_PRICE_BINS) {
-      filterPriceBinEl.append(new Option(priceBinLabel(b), b.toString()));
+
+  // Heatmap: Accommodates checkbox group
+  const filterAccEl = document.getElementById('filter-acc');
+  if (filterAccEl && filterAccEl.children.length === 0) {
+    const accOptions = ['1 guest', '2 guests', '3-4 guests', '5-6 guests', '7+ guests'];
+    let html = `<label class="checkbox-label">
+      <input type="checkbox" value="all" checked>
+      <strong>(All)</strong>
+    </label>`;
+    for (const a of accOptions) {
+      html += `<label class="checkbox-label"><input type="checkbox" value="${a}" checked> ${a}</label>`;
     }
+    filterAccEl.innerHTML = html;
+  }
+
+  // Heatmap: Price Bin checkbox group
+  const filterPriceBinEl = document.getElementById('filter-price-bin');
+  if (filterPriceBinEl && filterPriceBinEl.children.length === 0) {
+    let html = `<label class="checkbox-label">
+      <input type="checkbox" value="all" checked>
+      <strong>(All)</strong>
+    </label>`;
+    for (const b of HEATMAP_PRICE_BINS) {
+      html += `<label class="checkbox-label"><input type="checkbox" value="${b}" checked> ${priceBinLabel(b)}</label>`;
+    }
+    filterPriceBinEl.innerHTML = html;
   }
 }
 
+function handleFilterChange(e, containerEl, callback) {
+  if (e.target.tagName !== 'INPUT') return;
+  const allCb = containerEl.querySelector('input[value="all"]');
+  const otherCbs = containerEl.querySelectorAll('input:not([value="all"])');
+
+  if (e.target === allCb) {
+    otherCbs.forEach(cb => cb.checked = e.target.checked);
+  } else {
+    allCb.checked = Array.from(otherCbs).every(c => c.checked);
+  }
+  (callback ?? updateCharts)();
+}
+
 function getFilters() {
+  const getChecked = (el) => Array.from(el?.querySelectorAll('input:not([value="all"]):checked') || []).map(cb => cb.value);
   return {
-    roomType: filterRoomEl?.value ?? 'all',
-    borough: filterBoroughEl?.value ?? 'all',
+    roomType: getChecked(filterRoomEl),
+    borough: getChecked(filterBoroughEl),
     excludeZero: document.getElementById('filter-exclude-0')?.checked ?? false,
   };
 }
@@ -88,29 +131,38 @@ function updateCharts() {
   const r2 = rowsForChart2(f);
 
   const parts = [`Chart 2: ${r2.length.toLocaleString()} / ${allRows.length.toLocaleString()} listings`];
-  if (f.roomType !== 'all') parts.push(document.querySelector('#filter-room option:checked')?.text ?? '');
-  if (f.borough !== 'all') parts.push(f.borough);
+  if (f.roomType.length > 0 && f.roomType.length < ROOM_TYPES.length) parts.push(f.roomType.join(', '));
+  if (f.borough.length > 0 && f.borough.length < BOROUGHS.length) parts.push(f.borough.join(', '));
   setStatus(parts.join(' · '));
 
-  chart2CardEl?.classList.toggle('chart-card--filtered', f.borough !== 'all');
+  const hasBoroughFilter = f.borough.length > 0 && f.borough.length < BOROUGHS.length;
+  chart2CardEl?.classList.toggle('chart-card--filtered', hasBoroughFilter);
 
   if (chart2HintEl) {
-    chart2HintEl.textContent =
-      f.borough === 'all'
-        ? ''
-        : `Chart 2 shows listings in ${f.borough} only. Click the same borough on chart 1 or set “All boroughs” to clear.`;
-    chart2HintEl.hidden = f.borough === 'all';
+    chart2HintEl.textContent = !hasBoroughFilter
+      ? ''
+      : `Chart 2 shows filtered listings only.`;
+    chart2HintEl.hidden = !hasBoroughFilter;
   }
 
   const responseData = aggregateResponseTimeByBorough(r1);
-  const selectedBorough = f.borough === 'all' ? null : f.borough;
+  const selectedBorough = (f.borough.length === 1) ? f.borough[0] : null;
 
   renderResponseStack('#chart1', responseData, {
     selectedBorough,
     onBoroughClick: (borough) => {
       if (!filterBoroughEl) return;
-      const next = filterBoroughEl.value === borough ? 'all' : borough;
-      filterBoroughEl.value = next;
+      const allCb = filterBoroughEl.querySelector('input[value="all"]');
+      const otherCbs = filterBoroughEl.querySelectorAll('input:not([value="all"])');
+      const currentChecked = Array.from(otherCbs).filter(c => c.checked).map(c => c.value);
+
+      if (currentChecked.length === 1 && currentChecked[0] === borough) {
+        otherCbs.forEach(cb => cb.checked = true);
+        if (allCb) allCb.checked = true;
+      } else {
+        otherCbs.forEach(cb => cb.checked = (cb.value === borough));
+        if (allCb) allCb.checked = false;
+      }
       updateCharts();
     },
   });
@@ -122,7 +174,7 @@ function updateCharts() {
   const preferredData = aggregatePreferredRoomType(r2);
   renderStackBarChart('#chart3', preferredData);
   buildChart3Legend(preferredData.types);
-  
+
   // Chart 5 - Rating Pie (uses borough AND roomType)
   const pieData = aggregateRatingDistribution(r2);
   renderRatingPie('#chart5', pieData);
@@ -150,10 +202,19 @@ function updateChart4() {
   const f = getFilters();
   const r1 = rowsForChart1(f);
   const heatmapData = aggregateHeatmap(r1);
+
+  const getCheckedValues = (id) => {
+    const el = document.getElementById(id);
+    return Array.from(el?.querySelectorAll('input:not([value="all"]):checked') || []).map(cb => cb.value);
+  };
+
+  const accChecked = getCheckedValues('filter-acc');
+  const priceChecked = getCheckedValues('filter-price-bin');
+
   renderHeatmap('#chart4', heatmapData, {
     roomFilter: f.roomType,
-    accFilter: document.getElementById('filter-acc')?.value ?? 'all',
-    priceBinFilter: document.getElementById('filter-price-bin')?.value ?? 'all',
+    accFilter: accChecked,
+    priceBinFilter: priceChecked,
   });
 }
 
@@ -168,24 +229,24 @@ async function main() {
     // Initial render of all charts
     updateCharts();
 
-    document.getElementById('filter-room')?.addEventListener('change', updateCharts);
-    document.getElementById('filter-borough')?.addEventListener('change', updateCharts);
+    document.getElementById('filter-room')?.addEventListener('change', (e) => handleFilterChange(e, document.getElementById('filter-room')));
+    document.getElementById('filter-borough')?.addEventListener('change', (e) => handleFilterChange(e, document.getElementById('filter-borough')));
     document.getElementById('filter-exclude-0')?.addEventListener('change', updateCharts);
-    
-    document.getElementById('filter-acc')?.addEventListener('change', updateChart4);
-    document.getElementById('filter-price-bin')?.addEventListener('change', updateChart4);
-    
+
+    document.getElementById('filter-acc')?.addEventListener('change', (e) => handleFilterChange(e, document.getElementById('filter-acc'), updateChart4));
+    document.getElementById('filter-price-bin')?.addEventListener('change', (e) => handleFilterChange(e, document.getElementById('filter-price-bin'), updateChart4));
+
     document.getElementById('filter-heatmap-reset')?.addEventListener('click', () => {
-      if (document.getElementById('filter-acc')) document.getElementById('filter-acc').value = 'all';
-      if (document.getElementById('filter-price-bin')) document.getElementById('filter-price-bin').value = 'all';
+      document.getElementById('filter-acc')?.querySelectorAll('input').forEach(cb => cb.checked = true);
+      document.getElementById('filter-price-bin')?.querySelectorAll('input').forEach(cb => cb.checked = true);
       updateChart4();
     });
-    
+
     document.getElementById('filter-reset')?.addEventListener('click', () => {
-      if (document.getElementById('filter-room')) document.getElementById('filter-room').value = 'all';
-      if (document.getElementById('filter-borough')) document.getElementById('filter-borough').value = 'all';
-      if (document.getElementById('filter-acc')) document.getElementById('filter-acc').value = 'all';
-      if (document.getElementById('filter-price-bin')) document.getElementById('filter-price-bin').value = 'all';
+      document.getElementById('filter-room')?.querySelectorAll('input').forEach(cb => cb.checked = true);
+      document.getElementById('filter-borough')?.querySelectorAll('input').forEach(cb => cb.checked = true);
+      document.getElementById('filter-acc')?.querySelectorAll('input').forEach(cb => cb.checked = true);
+      document.getElementById('filter-price-bin')?.querySelectorAll('input').forEach(cb => cb.checked = true);
       if (document.getElementById('filter-exclude-0')) document.getElementById('filter-exclude-0').checked = false;
       updateCharts();
     });

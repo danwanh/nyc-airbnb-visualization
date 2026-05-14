@@ -36,8 +36,21 @@ export function filterListings(rows, f = {}) {
   const excludeZero = f.excludeZero ?? false;
 
   return rows.filter((row) => {
-    if (room !== 'all' && row.room_type !== room) return false;
-    if (borough !== 'all' && row.neighbourhood_group_cleansed !== borough) return false;
+    if (room !== 'all') {
+      if (Array.isArray(room)) {
+        if (!room.includes(row.room_type)) return false;
+      } else if (row.room_type !== room) {
+        return false;
+      }
+    }
+    
+    if (borough !== 'all') {
+      if (Array.isArray(borough)) {
+        if (!borough.includes(row.neighbourhood_group_cleansed)) return false;
+      } else if (row.neighbourhood_group_cleansed !== borough) {
+        return false;
+      }
+    }
     
     if (excludeZero) {
       const price = _parsePrice(row.price);
