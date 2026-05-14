@@ -4,7 +4,7 @@ import { chartTooltip } from '../components/tooltip.js';
 import { CHROME } from '../utils/palette.js';
 
 /**
- * Vertical stacked bar chart: % of total number_of_reviews
+ * Vertical stacked bar chart: % of number_of_reviews within each borough
  * per borough × room type — mirrors the Tableau "Preferred room type" view.
  *
  * @param {string} containerSelector  – CSS selector of an <svg> element
@@ -51,9 +51,8 @@ export function renderStackBarChart(containerSelector, data, options = {}) {
   const g = svg.append('g').attr('transform', `translate(${margin.left},${margin.top})`);
 
   /* ── Scales ── */
-  // Y-axis max: round up the highest stacked total to a nice ceiling
-  const maxPct = d3.max(hoods, (b) => types.reduce((s, t) => s + (pct[b][t] ?? 0), 0));
-  const yMax = Math.ceil((maxPct + 2) / 5) * 5; // next multiple of 5
+  // Y-axis max is always 100 since data is normalized per borough
+  const yMax = 100;
 
   const x = d3.scaleBand().domain(hoods).range([0, iW]).padding(0.38);
   const y = d3.scaleLinear().domain([0, yMax]).range([innerH, 0]).nice();

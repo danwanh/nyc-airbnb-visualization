@@ -284,8 +284,12 @@ export function aggregatePreferredRoomType(rows) {
   const pct = {};
   for (const b of hoods) {
     pct[b] = {};
+    let boroughTotal = 0;
     for (const t of types) {
-      pct[b][t] = total > 0 ? (pivot[b][t] / total) * 100 : 0;
+      boroughTotal += pivot[b][t] ?? 0;
+    }
+    for (const t of types) {
+      pct[b][t] = boroughTotal > 0 ? (pivot[b][t] / boroughTotal) * 100 : 0;
     }
   }
 
