@@ -36,10 +36,22 @@ export function filterListings(rows, f = {}) {
   const excludeZero = f.excludeZero ?? false;
 
   return rows.filter((row) => {
-    if (room !== 'all' && row.room_type !== room) return false;
-    if (borough !== 'all' && row.neighbourhood_group_cleansed !== borough) return false;
-    if (neighborhood !== 'all' && row.neighbourhood_cleansed !== neighborhood) return false;
-    
+    if (room !== 'all') {
+      if (Array.isArray(room)) {
+        if (!room.includes(row.room_type)) return false;
+      } else if (row.room_type !== room) {
+        return false;
+      }
+    }
+
+    if (borough !== 'all') {
+      if (Array.isArray(borough)) {
+        if (!borough.includes(row.neighbourhood_group_cleansed)) return false;
+      } else if (row.neighbourhood_group_cleansed !== borough) {
+        return false;
+      }
+    }
+
     if (excludeZero) {
       const price = _parsePrice(row.price);
       if (Number.isFinite(price) && Math.floor(price / 50) * 50 === 0) return false;
@@ -148,11 +160,11 @@ export const HEATMAP_ACC_GROUPS = [
 ];
 
 export const HEATMAP_PRICE_GROUPS = [
-  { label: '$0–$200',     min: 0,    max: 200  },
-  { label: '$200–$400',   min: 200,  max: 400  },
-  { label: '$400–$600',   min: 400,  max: 600  },
-  { label: '$600–$1,000', min: 600,  max: 1000 },
-  { label: '$1,000+',     min: 1000, max: Infinity },
+  { label: '$0–$200', min: 0, max: 200 },
+  { label: '$200–$400', min: 200, max: 400 },
+  { label: '$400–$600', min: 400, max: 600 },
+  { label: '$600–$1,000', min: 600, max: 1000 },
+  { label: '$1,000+', min: 1000, max: Infinity },
 ];
 
 function _accGroupOf(n) {
@@ -174,14 +186,14 @@ function _accGroupOf(n) {
 export const HEATMAP_PRICE_BINS = [0, 50, 100, 150, 200, 300, 400, 500, 750, 1000];
 
 export function priceBinLabel(bin) {
-  const next = { 0:50, 50:100, 100:150, 150:200, 200:300, 300:400, 400:500, 500:750, 750:1000 };
+  const next = { 0: 50, 50: 100, 100: 150, 150: 200, 200: 300, 300: 400, 400: 500, 500: 750, 750: 1000 };
   if (bin === 1000) return '$1,000+';
   return `$${bin}–$${next[bin]}`;
 }
 
 function _priceBinOf(price) {
-  if (price < 200)  return Math.floor(price / 50)  * 50;
-  if (price < 500)  return Math.floor(price / 100) * 100;
+  if (price < 200) return Math.floor(price / 50) * 50;
+  if (price < 500) return Math.floor(price / 100) * 100;
   if (price < 1000) return Math.floor(price / 250) * 250;
   return 1000;
 }
@@ -214,7 +226,7 @@ export function aggregateHeatmap(rows) {
     const price = _parsePrice(row.price);
     if (!Number.isFinite(price) || price < 0) continue;
 
-    const ag  = _accGroupOf(acc);
+    const ag = _accGroupOf(acc);
     const bin = _priceBinOf(price);
 
     const prev = counts[rt][ag][bin] ?? 0;
@@ -230,9 +242,9 @@ export function aggregateHeatmap(rows) {
 /** Colors for the preferred room type stacked bar chart (matches Tableau palette). */
 export const ROOM_TYPE_COLORS = {
   'Entire home/apt': '#b08fa8',
-  'Hotel room':      '#c9b84a',
-  'Private room':    '#2e6b4f',
-  'Shared room':     '#c4622a',
+  'Hotel room': '#c9b84a',
+  'Private room': '#2e6b4f',
+  'Shared room': '#c4622a',
 };
 
 /** Ordered room types for stacking (bottom → top). */
@@ -262,16 +274,16 @@ export function aggregatePreferredRoomType(rows) {
   let total = 0;
 
   for (const row of rows) {
-    const nb  = (row.neighbourhood_group_cleansed ?? '').trim();
-    const rt  = (row.room_type                    ?? '').trim();
-    const rev = parseFloat(row.number_of_reviews   ?? 0);
+    const nb = (row.neighbourhood_group_cleansed ?? '').trim();
+    const rt = (row.room_type ?? '').trim();
+    const rev = parseFloat(row.number_of_reviews ?? 0);
 
     if (!nb || !rt || isNaN(rev)) continue;
-    if (!pivot[nb])     pivot[nb]     = {};
+    if (!pivot[nb]) pivot[nb] = {};
     if (!pivot[nb][rt]) pivot[nb][rt] = 0;
 
     pivot[nb][rt] += rev;
-    total         += rev;
+    total += rev;
   }
 
   const hoods = BOROUGHS.filter((b) =>
@@ -327,6 +339,46 @@ export function aggregateRatingDistribution(rows) {
     { group: 'Trung (4.0–4.5)', key: 'mid', count: mid },
     { group: 'Thấp (<4.0)', key: 'low', count: low },
   ];
+}
+
+/**
+ * Same classification as aggregateRatingDistribution but grouped per borough.
+ *
+ * @param {object[]} rows – raw CSV rows
+ * @returns {Object<string, Array<{ group: string, key: string, count: number }>>}
+ *   Object keyed by borough name (Bronx, Brooklyn, Manhattan, Queens, Staten Island).
+ */
+export function aggregateRatingDistributionByBorough(rows) {
+  const result = {};
+  for (const b of BOROUGHS) {
+    result[b] = { high: 0, mid: 0, low: 0 };
+  }
+
+  for (const row of rows) {
+    const boro = (row.neighbourhood_group_cleansed ?? '').trim();
+    if (!result[boro]) continue;
+
+    const raw = row.review_scores_rating;
+    if (raw === '' || raw == null) continue;
+    const v = typeof raw === 'number' ? raw : parseFloat(String(raw).trim());
+    if (!Number.isFinite(v)) continue;
+
+    if (v >= 4.5) result[boro].high++;
+    else if (v >= 4.0) result[boro].mid++;
+    else result[boro].low++;
+  }
+
+  const out = {};
+  for (const b of BOROUGHS) {
+    const c = result[b];
+    out[b] = [
+      { group: 'Cao (≥4.5)',      key: 'high', count: c.high },
+      { group: 'Trung (4.0–4.5)', key: 'mid',  count: c.mid  },
+      { group: 'Thấp (<4.0)',     key: 'low',  count: c.low  },
+    ];
+  }
+
+  return out;
 }
 
 /* ── Chart 6: Instant Bookable by Borough × Room Type ── */

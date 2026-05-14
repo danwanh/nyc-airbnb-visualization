@@ -151,49 +151,145 @@ svg text {
 .filters-bar {
   display: flex;
   flex-wrap: wrap;
-  align-items: flex-end;
-  gap: 18px 24px;
-  margin-bottom: 18px;
-  padding: 16px 18px;
+  align-items: stretch;
+  gap: 24px;
+  margin-bottom: 24px;
+  padding: 20px;
   background: var(--bg-card);
   border: 1px solid var(--border-card);
-  border-radius: 12px;
+  border-radius: 16px;
   box-shadow: var(--shadow);
 }
 
-.filter-field {
+/* Paired filter columns: labels on same row, checkboxes on same row */
+.filter-checkbox-pair {
+  display: flex;
+  gap: 24px;
+  flex: 1;
+  min-width: 320px;
+}
+
+.filter-pair-col {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  flex: 1;
+}
+
+.filter-checkbox-group {
   display: flex;
   flex-direction: column;
   gap: 6px;
-  min-width: 180px;
+  background: #f8fafc;
+  border: 1px solid var(--border-card);
+  border-radius: 10px;
+  padding: 12px;
+  font-size: 13px;
+  max-height: 160px;
+  overflow-y: auto;
+  transition: border-color 0.2s;
+}
+
+.filter-checkbox-group:hover {
+  border-color: #cbd5e1;
+}
+
+.filter-extras {
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  gap: 12px;
+  padding-left: 24px;
+  border-left: 1px solid var(--border-card);
+}
+
+/* Custom Checkbox Styling */
+.checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+  color: var(--text-soft);
+  font-size: 13px;
+  padding: 4px 6px;
+  border-radius: 6px;
+  transition: background 0.2s;
+}
+
+.checkbox-label:hover {
+  background: rgba(99, 102, 241, 0.05);
+  color: var(--text);
+}
+
+.checkbox-label input[type="checkbox"] {
+  appearance: none;
+  width: 16px;
+  height: 16px;
+  border: 1.5px solid #cbd5e1;
+  border-radius: 4px;
+  cursor: pointer;
+  position: relative;
+  background: #fff;
+  transition: all 0.2s;
+  flex-shrink: 0;
+}
+
+.checkbox-label input[type="checkbox"]:checked {
+  background-color: var(--accent);
+  border-color: var(--accent);
+}
+
+.checkbox-label input[type="checkbox"]:checked::after {
+  content: '';
+  position: absolute;
+  left: 4.5px;
+  top: 1.5px;
+  width: 4px;
+  height: 8px;
+  border: solid white;
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg);
+}
+
+.checkbox-label input[value="all"] {
+  font-weight: 600;
+  color: var(--text);
+}
+
+/* Heatmap variant: horizontal pair side-by-side with reset button */
+.heatmap-controls {
+  display: flex;
+  gap: 16px;
+  align-items: stretch;
+  margin-top: 8px;
+  background: #f8fafc;
+  padding: 12px;
+  border-radius: 12px;
+  border: 1px solid var(--border-card);
+}
+
+.filter-checkbox-pair--heatmap {
+  min-width: unset;
+  flex: 1;
+  gap: 16px;
+}
+
+.filter-checkbox-pair--heatmap .filter-pair-col {
+  min-width: 140px;
+}
+
+.filter-checkbox-pair--heatmap .filter-checkbox-group {
+  max-height: 120px;
+  background: #fff;
 }
 
 .filter-label {
-  font-size: 11px;
-  font-weight: 600;
-  letter-spacing: 0.06em;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
   text-transform: uppercase;
   color: var(--text-muted);
-}
-
-.filter-select {
-  appearance: none;
-  background: #f8fafc;
-  color: var(--text);
-  border: 1px solid var(--border-card);
-  border-radius: 8px;
-  padding: 9px 32px 9px 12px;
-  font-size: 14px;
-  font-family: inherit;
-  cursor: pointer;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%2364748b' d='M3 4.5L6 8l3-3.5'/%3E%3C/svg%3E");
-  background-repeat: no-repeat;
-  background-position: right 12px center;
-}
-
-.filter-select:hover {
-  border-color: #cbd5e1;
-  background-color: #fff;
+  margin-bottom: 2px;
 }
 
 .filter-reset {

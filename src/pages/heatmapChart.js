@@ -64,13 +64,23 @@ export function renderHeatmap(containerSelector, data, options = {}) {
   }).join('');
 
   /* ── Main render logic ── */
-    const rooms = roomFilter === 'all' ? HEATMAP_ROOMS : [roomFilter];
-    const accGroups = accFilter === 'all' ? HEATMAP_ACC_GROUPS : [accFilter];
-    
+    const rooms = Array.isArray(roomFilter)
+      ? (roomFilter.length > 0 ? roomFilter : HEATMAP_ROOMS)
+      : (roomFilter === 'all' ? HEATMAP_ROOMS : [roomFilter]);
+
+    const accGroups = Array.isArray(accFilter)
+      ? (accFilter.length > 0 ? accFilter : HEATMAP_ACC_GROUPS)
+      : (accFilter === 'all' ? HEATMAP_ACC_GROUPS : [accFilter]);
+
     // Use the fixed variable-width bins
     let allBins = [...HEATMAP_PRICE_BINS];
 
-    if (priceBinFilter !== 'all') {
+    if (Array.isArray(priceBinFilter)) {
+      if (priceBinFilter.length > 0) {
+        const selectedBins = priceBinFilter.map(v => parseInt(v, 10));
+        allBins = allBins.filter(b => selectedBins.includes(b));
+      }
+    } else if (priceBinFilter !== 'all') {
       const targetBin = parseInt(priceBinFilter, 10);
       allBins = allBins.filter(b => b === targetBin);
     }
