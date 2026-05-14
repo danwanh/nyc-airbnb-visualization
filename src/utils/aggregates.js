@@ -328,6 +328,46 @@ export function aggregateRatingDistribution(rows) {
   ];
 }
 
+/**
+ * Same classification as aggregateRatingDistribution but grouped per borough.
+ *
+ * @param {object[]} rows – raw CSV rows
+ * @returns {Object<string, Array<{ group: string, key: string, count: number }>>}
+ *   Object keyed by borough name (Bronx, Brooklyn, Manhattan, Queens, Staten Island).
+ */
+export function aggregateRatingDistributionByBorough(rows) {
+  const result = {};
+  for (const b of BOROUGHS) {
+    result[b] = { high: 0, mid: 0, low: 0 };
+  }
+
+  for (const row of rows) {
+    const boro = (row.neighbourhood_group_cleansed ?? '').trim();
+    if (!result[boro]) continue;
+
+    const raw = row.review_scores_rating;
+    if (raw === '' || raw == null) continue;
+    const v = typeof raw === 'number' ? raw : parseFloat(String(raw).trim());
+    if (!Number.isFinite(v)) continue;
+
+    if (v >= 4.5) result[boro].high++;
+    else if (v >= 4.0) result[boro].mid++;
+    else result[boro].low++;
+  }
+
+  const out = {};
+  for (const b of BOROUGHS) {
+    const c = result[b];
+    out[b] = [
+      { group: 'Cao (≥4.5)',      key: 'high', count: c.high },
+      { group: 'Trung (4.0–4.5)', key: 'mid',  count: c.mid  },
+      { group: 'Thấp (<4.0)',     key: 'low',  count: c.low  },
+    ];
+  }
+
+  return out;
+}
+
 /* ── Chart 6: Instant Bookable by Borough × Room Type ── */
 
 /**
