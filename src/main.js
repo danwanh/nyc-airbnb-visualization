@@ -23,8 +23,13 @@ import { renderRatingPie } from "./pages/ratingPieChart.js";
 import { renderInstantBookableChart } from "./pages/instantBookableChart.js";
 import { chartTooltip } from "./components/tooltip.js";
 
+// Refactored charts
+import { renderListingBubbleMap } from "./pages/ListingBubbleMap.js";
+import { renderNeighborhoodBarChart } from "./pages/NeighborhoodBarChart.js";
+
 /* Heatmap data is pre-computed once and reused (filters are internal to the component) */
 let _heatmapData = null;
+let _selectedNeighborhood = null;
 
 const statusEl = document.getElementById("chart-status");
 const filterRoomEl = document.getElementById("filter-room");
@@ -65,6 +70,7 @@ function getFilters() {
     roomType: filterRoomEl?.value ?? "all",
     borough: filterBoroughEl?.value ?? "all",
     excludeZero: document.getElementById("filter-exclude-0")?.checked ?? false,
+    neighborhood: _selectedNeighborhood ?? "all",
   };
 }
 
@@ -76,6 +82,9 @@ function rowsForChart1(f) {
     roomType: f.roomType,
     borough: "all",
     excludeZero: f.excludeZero,
+    // Note: chart 1 usually doesn't filter by neighborhood to keep context, 
+    // but here we might want to if specified.
+    neighborhood: "all", 
   });
 }
 
@@ -93,23 +102,23 @@ function updateCharts() {
   const r2 = rowsForChart2(f);
 
   const parts = [
-    `Chart 2: ${r2.length.toLocaleString()} / ${allRows.length.toLocaleString()} listings`,
+    `Listings: ${r2.length.toLocaleString()} / ${allRows.length.toLocaleString()}`,
   ];
   if (f.roomType !== "all")
-    parts.push(
-      document.querySelector("#filter-room option:checked")?.text ?? "",
-    );
+    parts.push(document.querySelector("#filter-room option:checked")?.text ?? "");
   if (f.borough !== "all") parts.push(f.borough);
+  if (_selectedNeighborhood) parts.push(`📍 ${_selectedNeighborhood}`);
+  
   setStatus(parts.join(" · "));
 
-  chart2CardEl?.classList.toggle("chart-card--filtered", f.borough !== "all");
+  chart2CardEl?.classList.toggle("chart-card--filtered", f.borough !== "all" || _selectedNeighborhood);
 
   if (chart2HintEl) {
-    chart2HintEl.textContent =
-      f.borough === "all"
-        ? ""
-        : `Chart 2 shows listings in ${f.borough} only. Click the same borough on chart 1 or set “All boroughs” to clear.`;
-    chart2HintEl.hidden = f.borough === "all";
+    let hint = "";
+    if (f.borough !== "all") hint = `Showing listings in ${f.borough}. `;
+    if (_selectedNeighborhood) hint += `Filtered by neighborhood: ${_selectedNeighborhood}. Click neighborhood again to clear.`;
+    chart2HintEl.textContent = hint;
+    chart2HintEl.hidden = !hint;
   }
 
   const responseData = aggregateResponseTimeByBorough(r1);
@@ -121,6 +130,8 @@ function updateCharts() {
       if (!filterBoroughEl) return;
       const next = filterBoroughEl.value === borough ? "all" : borough;
       filterBoroughEl.value = next;
+      // Reset neighborhood when changing borough
+      _selectedNeighborhood = null;
       updateCharts();
     },
   });
@@ -128,7 +139,7 @@ function updateCharts() {
   const reviewData = aggregateReviewScoresByRoomType(r2);
   renderReviewDotPlot("#chart2", reviewData);
 
-  // Chart 3 — preferred room type (uses borough AND roomType)
+  // Chart 3 — preferred room type
   const preferredData = aggregatePreferredRoomType(r2);
   renderStackBarChart("#chart3", preferredData);
   buildChart3Legend(preferredData.types);
@@ -137,8 +148,21 @@ function updateCharts() {
   const pieData = aggregateRatingDistributionByBorough(r1);
   renderRatingPie("#chart5", pieData);
 
-  // Chart 4 - Heatmap uses r1 (filtered by roomType only) + its own internal controls
+  // Chart 4 - Heatmap
   updateChart4();
+
+  // Update New Charts (12 & 13)
+  const borough = f.borough;
+  const neighborhoodOptions = {
+    selectedNeighborhood: _selectedNeighborhood,
+    onNeighborhoodClick: (nb) => {
+      _selectedNeighborhood = _selectedNeighborhood === nb ? null : nb;
+      updateCharts();
+    },
+  };
+
+  renderListingBubbleMap("#chart12", allRows, borough, neighborhoodOptions);
+  renderNeighborhoodBarChart("#chart13", allRows, borough, neighborhoodOptions);
 }
 
 function buildChart3Legend(types) {
@@ -159,7 +183,12 @@ function updateChart4() {
   if (!allRows) return;
   const f = getFilters();
   const r1 = rowsForChart1(f);
-  const heatmapData = aggregateHeatmap(r1);
+  // Also filter chart 4 by neighborhood if selected
+  const r4 = _selectedNeighborhood 
+    ? r1.filter(r => r.neighbourhood_cleansed === _selectedNeighborhood)
+    : r1;
+    
+  const heatmapData = aggregateHeatmap(r4);
   renderHeatmap("#chart4", heatmapData, {
     roomFilter: f.roomType,
     accFilter: document.getElementById("filter-acc")?.value ?? "all",
@@ -175,78 +204,38 @@ async function main() {
     allRows = await loadListings();
     setStatus(`${allRows.length.toLocaleString()} listings loaded.`);
 
-    // Initial render of all charts
+    // Initial render
     updateCharts();
 
-    // Render Sheet 12: Bubble Map
-    if (document.getElementById("chart12")) {
-      const svg12 = document.getElementById("chart12");
-      const borough = getFilters().borough;
-      const options = {
-        selectedNeighborhood: null,
-        onNeighborhoodClick: () => {},
-      };
-      // Wait for DOM to be ready and then render
-      setTimeout(() => {
-        import("./pages/sheet12BubbleMap.js").then(({ renderSheet12 }) => {
-          renderSheet12(svg12, allRows, borough, options);
-        });
-      }, 0);
-    }
-
-    // Render Sheet 13: Bar Chart
-    if (document.getElementById("chart13")) {
-      const svg13 = document.getElementById("chart13");
-      const borough = getFilters().borough;
-      setTimeout(() => {
-        import("./pages/sheet13BarChart.js").then(({ renderSheet13 }) => {
-          renderSheet13(svg13, allRows, borough);
-        });
-      }, 0);
-    }
-
-    document
-      .getElementById("filter-room")
-      ?.addEventListener("change", updateCharts);
-    document
-      .getElementById("filter-borough")
-      ?.addEventListener("change", updateCharts);
-    document
-      .getElementById("filter-exclude-0")
-      ?.addEventListener("change", updateCharts);
-
-    document
-      .getElementById("filter-acc")
-      ?.addEventListener("change", updateChart4);
-    document
-      .getElementById("filter-price-bin")
-      ?.addEventListener("change", updateChart4);
-
-    document
-      .getElementById("filter-heatmap-reset")
-      ?.addEventListener("click", () => {
-        if (document.getElementById("filter-acc"))
-          document.getElementById("filter-acc").value = "all";
-        if (document.getElementById("filter-price-bin"))
-          document.getElementById("filter-price-bin").value = "all";
-        updateChart4();
-      });
-
-    document.getElementById("filter-reset")?.addEventListener("click", () => {
-      if (document.getElementById("filter-room"))
-        document.getElementById("filter-room").value = "all";
-      if (document.getElementById("filter-borough"))
-        document.getElementById("filter-borough").value = "all";
-      if (document.getElementById("filter-acc"))
-        document.getElementById("filter-acc").value = "all";
-      if (document.getElementById("filter-price-bin"))
-        document.getElementById("filter-price-bin").value = "all";
-      if (document.getElementById("filter-exclude-0"))
-        document.getElementById("filter-exclude-0").checked = false;
+    // Event Listeners
+    document.getElementById("filter-room")?.addEventListener("change", () => {
+      _selectedNeighborhood = null;
       updateCharts();
     });
+    document.getElementById("filter-borough")?.addEventListener("change", () => {
+      _selectedNeighborhood = null;
+      updateCharts();
+    });
+    document.getElementById("filter-exclude-0")?.addEventListener("change", updateCharts);
 
-    updateCharts();
+    document.getElementById("filter-acc")?.addEventListener("change", updateChart4);
+    document.getElementById("filter-price-bin")?.addEventListener("change", updateChart4);
+
+    document.getElementById("filter-heatmap-reset")?.addEventListener("click", () => {
+      if (document.getElementById("filter-acc")) document.getElementById("filter-acc").value = "all";
+      if (document.getElementById("filter-price-bin")) document.getElementById("filter-price-bin").value = "all";
+      updateChart4();
+    });
+
+    document.getElementById("filter-reset")?.addEventListener("click", () => {
+      if (document.getElementById("filter-room")) document.getElementById("filter-room").value = "all";
+      if (document.getElementById("filter-borough")) document.getElementById("filter-borough").value = "all";
+      if (document.getElementById("filter-acc")) document.getElementById("filter-acc").value = "all";
+      if (document.getElementById("filter-price-bin")) document.getElementById("filter-price-bin").value = "all";
+      if (document.getElementById("filter-exclude-0")) document.getElementById("filter-exclude-0").checked = false;
+      _selectedNeighborhood = null;
+      updateCharts();
+    });
 
     // ── Chart 6: Instant Bookable (static overview, no filter) ──
     function updateChart6() {
@@ -254,14 +243,11 @@ async function main() {
       const ibData = aggregateInstantBookable(allRows);
       renderInstantBookableChart("#chart6", ibData);
     }
-
     updateChart6();
+
   } catch (e) {
     console.error(e);
-    setStatus(
-      "Could not load CSV. Run `npm run dev` and open this page via the dev server (not file://).",
-      true,
-    );
+    setStatus("Could not load CSV. Ensure server is running.", true);
   }
 }
 

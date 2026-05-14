@@ -1,8 +1,9 @@
 /**
- * sheet13BarChart.js — Median Price by Neighbourhood (Sheet 13)
- * X: neighbourhood_cleansed (sorted A–Z), Y: MEDIAN(price), color = borough
+ * NeighborhoodBarChart.js — Median Price by Neighbourhood
+ * X: neighbourhood_cleansed, Y: MEDIAN(price), color = borough
  */
 import * as d3 from "d3";
+import { chartTooltip } from "../components/tooltip.js";
 
 const BOROUGH_COLORS = {
   Bronx: "#4472c4",
@@ -53,14 +54,16 @@ function aggregateMedianPrice(rows, boroughFilter = "all") {
     .sort((a, b) => a.neighbourhood.localeCompare(b.neighbourhood));
 }
 
-export function renderSheet13(
-  svgEl,
+export function renderNeighborhoodBarChart(
+  selector,
   rows,
   boroughFilter = "all",
   options = {},
 ) {
   const { selectedNeighborhood = null, onNeighborhoodClick } = options;
   const data = aggregateMedianPrice(rows, boroughFilter);
+  const svgEl = d3.select(selector).node();
+  if (!svgEl) return;
 
   // Use a scrollable wrapper inside the card
   let wrapper = svgEl.parentElement.querySelector(".s13-scroll");
@@ -86,7 +89,7 @@ export function renderSheet13(
   const svg = d3.select(svgEl).attr("width", W).attr("height", H);
 
   svg.selectAll("*").remove();
-  svg.append("rect").attr("width", W).attr("height", H).attr("fill", "#fff");
+  svg.append("rect").attr("width", W).attr("height", H).attr("fill", "transparent");
 
   const g = svg
     .append("g")
@@ -159,10 +162,7 @@ export function renderSheet13(
     .attr("text-anchor", "middle")
     .attr("fill", "#64748b")
     .attr("font-size", 11)
-    .text("neighbourhood_cleansed");
-
-  // Tooltip
-  const tipEl = document.getElementById("sheet13-tip");
+    .text("Neighbourhood");
 
   // Bars
   chartGroup
@@ -175,33 +175,38 @@ export function renderSheet13(
     .attr("width", x.bandwidth())
     .attr("height", 0)
     .attr("fill", (d) => BOROUGH_COLORS[d.borough] || "#70ad47")
-    .attr("fill-opacity", (d) =>
-      selectedNeighborhood && d.neighbourhood !== selectedNeighborhood
-        ? 0.24
-        : 0.85,
-    )
+    .attr("fill-opacity", (d) => {
+      if (!selectedNeighborhood) return 0.85;
+      return d.neighbourhood === selectedNeighborhood ? 1.0 : 0.2;
+    })
     .attr("stroke", (d) =>
-      d.neighbourhood === selectedNeighborhood ? "#4338ca" : "none",
+      d.neighbourhood === selectedNeighborhood ? "#000" : "none",
     )
     .attr("stroke-width", (d) =>
-      d.neighbourhood === selectedNeighborhood ? 2 : 0,
+      d.neighbourhood === selectedNeighborhood ? 1.5 : 0,
     )
     .style("cursor", "pointer")
     .on("mouseenter", function (event, d) {
-      if (d.neighbourhood !== selectedNeighborhood) {
-        d3.select(this).attr("stroke", "#000").attr("stroke-width", 1);
+      if (!selectedNeighborhood || d.neighbourhood === selectedNeighborhood) {
+         d3.select(this).attr("fill-opacity", 1);
       }
-      if (!tipEl) return;
-      tipEl.style.display = "block";
-      tipEl.style.left = event.pageX + 14 + "px";
-      tipEl.style.top = event.pageY - 10 + "px";
-      tipEl.innerHTML = `<strong>${d.neighbourhood}</strong><br>${d.borough}<br>Median: $${Math.round(d.medianPrice).toLocaleString()}`;
+      const html = `
+        <div style="font-weight:600; margin-bottom:4px;">${d.neighbourhood}</div>
+        <div style="font-size:11px; color:#64748b; margin-bottom:4px;">${d.borough}</div>
+        <div style="font-size:13px; font-weight:600; color:#0f172a;">$${Math.round(d.medianPrice).toLocaleString()}</div>
+        <div style="font-size:10px; color:#94a3b8; margin-top:4px;">Median Price</div>
+      `;
+      chartTooltip.show(html, event.clientX, event.clientY);
+    })
+    .on("mousemove", (event) => {
+      chartTooltip.move(event.clientX, event.clientY);
     })
     .on("mouseleave", function (event, d) {
-      if (d.neighbourhood !== selectedNeighborhood) {
-        d3.select(this).attr("stroke", "none").attr("stroke-width", 0);
-      }
-      if (tipEl) tipEl.style.display = "none";
+      d3.select(this).attr("fill-opacity", (d) => {
+        if (!selectedNeighborhood) return 0.85;
+        return d.neighbourhood === selectedNeighborhood ? 1.0 : 0.2;
+      });
+      chartTooltip.hide();
     })
     .on("click", function (event, d) {
       event.stopPropagation();
