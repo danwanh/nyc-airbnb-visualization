@@ -1,5 +1,5 @@
 /**
- * sheet13BarChart.js — Median Price by Neighbourhood (Sheet 13)
+ * neighbourhoodMedianPriceBarChart.js — Median Price by Neighbourhood
  * X: neighbourhood_cleansed (sorted A–Z), Y: MEDIAN(price), color = borough
  */
 import * as d3 from "d3";
@@ -9,7 +9,7 @@ const BOROUGH_COLORS = {
   Brooklyn: "#ed7d31",
   Manhattan: "#e04343",
   Queens: "#70ad47",
-  "Staten Island": "#70ad47",
+  "Staten Island": "#ada347",
 };
 
 function parsePrice(v) {
@@ -53,7 +53,7 @@ function aggregateMedianPrice(rows, boroughFilter = "all") {
     .sort((a, b) => a.neighbourhood.localeCompare(b.neighbourhood));
 }
 
-export function renderSheet13(
+export function renderNeighbourhoodMedianPriceBarChart(
   svgEl,
   rows,
   boroughFilter = "all",

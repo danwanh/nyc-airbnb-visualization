@@ -9,8 +9,8 @@ import {
 import { renderResponseStack } from "./pages/responseStackChart.js";
 import { renderReviewDotPlot } from "./pages/reviewDotPlotChart.js";
 import { chartTooltip } from "./components/tooltip.js";
-import { renderSheet12 } from "./pages/sheet12BubbleMap.js";
-import { renderSheet13 } from "./pages/sheet13BarChart.js";
+import { renderNeighbourhoodDensityBubbleMap } from "./pages/neighbourhoodDensityBubbleMap.js";
+import { renderNeighbourhoodMedianPriceBarChart } from "./pages/neighbourhoodMedianPriceBarChart.js";
 
 // ── DOM refs ─────────────────────────────────────────────────
 const statusEl = document.getElementById("chart-status");
@@ -119,8 +119,8 @@ function updateSheets() {
       updateAll();
     },
   };
-  if (chart12El) renderSheet12(chart12El, allRows, f.borough, sheetOptions);
-  if (chart13El) renderSheet13(chart13El, allRows, f.borough, sheetOptions);
+  if (chart12El) renderNeighbourhoodDensityBubbleMap(chart12El, allRows, f.borough, sheetOptions);
+  if (chart13El) renderNeighbourhoodMedianPriceBarChart(chart13El, allRows, f.borough, sheetOptions);
 }
 
 function updateAll() {

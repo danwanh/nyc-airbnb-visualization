@@ -1,5 +1,5 @@
 /**
- * sheet12BubbleMap.js — Listing Density by Neighbourhood (Sheet 12)
+ * neighbourhoodDensityBubbleMap.js — Listing Density by Neighbourhood
  * Bubble map: AVG(longitude) on X, AVG(latitude) on Y, size = CNT(id), color = borough
  */
 import * as d3 from "d3";
@@ -13,7 +13,7 @@ const BOROUGH_COLORS = {
   Brooklyn: "#ed7d31",
   Manhattan: "#e04343",
   Queens: "#70ad47",
-  "Staten Island": "#70ad47",
+  "Staten Island": "#ada347",
 };
 
 /** Aggregate raw rows → per-neighbourhood { neighbourhood, borough, lat, lng, count } */
@@ -54,7 +54,7 @@ function aggregateByNeighbourhood(rows, boroughFilter = "all") {
   }));
 }
 
-export async function renderSheet12(
+export async function renderNeighbourhoodDensityBubbleMap(
   svgEl,
   rows,
   boroughFilter = "all",
@@ -180,7 +180,8 @@ export async function renderSheet12(
     .join("text")
     .attr("class", "bubble-lbl")
     .attr("x", (d) => projection([d.lng, d.lat])[0])
-    .attr("y", (d) => projection([d.lng, d.lat])[1] + baseRScale(d.count) + 16)
+    .attr("y", (d) => projection([d.lng, d.lat])[1] + baseRScale(d.count) + 8)
+    .attr("dy", "0.9em")
     .attr("text-anchor", "middle")
     .attr("fill", "#333")
     .attr("font-size", 6)
@@ -204,7 +205,7 @@ export async function renderSheet12(
         (d) =>
           projection([d.lng, d.lat])[1] +
           baseRScale(d.count) * radiusCorrection +
-          16,
+          8,
       );
 
       const minZoomForLabels = 2.2; // show labels only when zoomed in enough
