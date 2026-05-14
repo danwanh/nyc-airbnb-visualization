@@ -242,11 +242,37 @@ function focusHeatmapCell(cell) {
 }
 
 function rowsForResponseOverview(f) {
+  if (!Array.isArray(f.borough) || f.borough.length === 0) {
+    return [];
+  }
+  if (!Array.isArray(f.roomType) || f.roomType.length === 0) {
+    return [];
+  }
+
+  const roomType = f.roomType;
+
+  let borough = "all";
+  if (f.borough.length < BOROUGHS.length) {
+    borough = f.borough;
+  }
+
   return filterListings(allRows, {
-    roomType: _selectedRoomType ? [_selectedRoomType] : f.roomType,
-    borough: "all",
+    roomType,
+    borough,
     neighborhood: "all",
   });
+}
+
+/** Borough columns to show on checkbox-driven charts (same order as BOROUGHS). */
+function boroughsForCheckboxCharts(f) {
+  if (!Array.isArray(f.borough) || f.borough.length === 0) {
+    return [];
+  }
+  if (f.borough.length >= BOROUGHS.length) {
+    return [...BOROUGHS];
+  }
+  const chosen = new Set(f.borough);
+  return BOROUGHS.filter((b) => chosen.has(b));
 }
 
 function rowsForDashboard(f) {
@@ -383,20 +409,22 @@ function updateChart4(f = getSourceFilters()) {
 
 function updateChart5(f = getSourceFilters(), selectedBorough = selectedBoroughFromFilters(f)) {
   if (!allRows) return;
-  const rows = rowsForAllBoroughComparison(f);
+  const rows = rowsForResponseOverview(f);
   const pieData = aggregateRatingDistributionByBorough(rows);
   renderRatingPie("#chart5", pieData, {
     selectedBorough,
+    visibleBoroughs: boroughsForCheckboxCharts(f),
     onBoroughClick: focusBorough,
   });
 }
 
 function updateChart6(f = getSourceFilters(), selectedBorough = selectedBoroughFromFilters(f)) {
   if (!allRows) return;
-  const rows = rowsForAllBoroughComparison(f);
+  const rows = rowsForResponseOverview(f);
   const ibData = aggregateInstantBookable(rows);
-  const selectedRooms = new Set(selectedRoomTypesFromFilters(f));
-  ibData.roomTypes = ibData.roomTypes.filter((rt) => selectedRooms.has(rt));
+  ibData.boroughs = boroughsForCheckboxCharts(f);
+  const roomSet = new Set(Array.isArray(f.roomType) ? f.roomType : []);
+  ibData.roomTypes = ibData.roomTypes.filter((rt) => roomSet.has(rt));
 
   renderInstantBookableChart("#chart6", ibData, {
     selectedBorough,

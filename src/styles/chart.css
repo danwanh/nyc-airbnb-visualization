@@ -259,6 +259,15 @@ h1 {
   overflow: visible;
 }
 
+.chart-svg.chart-svg--rating-pie-fixed {
+  width: 100% !important;
+  max-width: min(960px, 100%);
+  height: auto;
+  display: block;
+  margin-left: auto;
+  margin-right: auto;
+}
+
 .chart-scroll .chart-svg {
   width: auto;
   max-width: none;
