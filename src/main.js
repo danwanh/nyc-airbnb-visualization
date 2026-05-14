@@ -44,32 +44,73 @@ function setStatus(message, isError = false) {
 }
 
 function fillFilterSelects() {
-  if (filterRoomEl && filterRoomEl.options.length === 0) {
-    filterRoomEl.append(new Option("All room types", "all"));
+  if (filterRoomEl && filterRoomEl.children.length === 0) {
+    let html = `<label class="checkbox-label">
+      <input type="checkbox" value="all" checked>
+      <strong>(All)</strong>
+    </label>`;
     for (const rt of ROOM_TYPES) {
-      filterRoomEl.append(new Option(rt.label, rt.csv));
+      html += `<label class="checkbox-label"><input type="checkbox" value="${rt.csv}" checked> ${rt.label}</label>`;
     }
+    filterRoomEl.innerHTML = html;
   }
-  if (filterBoroughEl && filterBoroughEl.options.length === 0) {
-    filterBoroughEl.append(new Option("All boroughs", "all"));
+  if (filterBoroughEl && filterBoroughEl.children.length === 0) {
+    let html = `<label class="checkbox-label">
+      <input type="checkbox" value="all" checked>
+      <strong>(All)</strong>
+    </label>`;
     for (const b of BOROUGHS) {
-      filterBoroughEl.append(new Option(b, b));
+      html += `<label class="checkbox-label"><input type="checkbox" value="${b}" checked> ${b}</label>`;
     }
+    filterBoroughEl.innerHTML = html;
   }
-  const filterPriceBinEl = document.getElementById("filter-price-bin");
-  if (filterPriceBinEl && filterPriceBinEl.options.length <= 1) {
-    for (const b of HEATMAP_PRICE_BINS) {
-      filterPriceBinEl.append(new Option(priceBinLabel(b), b.toString()));
+  // Heatmap: Accommodates checkbox group
+  const filterAccEl = document.getElementById('filter-acc');
+  if (filterAccEl && filterAccEl.children.length === 0) {
+    const accOptions = ['1 guest', '2 guests', '3-4 guests', '5-6 guests', '7+ guests'];
+    let html = `<label class="checkbox-label">
+      <input type="checkbox" value="all" checked>
+      <strong>(All)</strong>
+    </label>`;
+    for (const a of accOptions) {
+      html += `<label class="checkbox-label"><input type="checkbox" value="${a}" checked> ${a}</label>`;
     }
+    filterAccEl.innerHTML = html;
+  }
+
+  // Heatmap: Price Bin checkbox group
+  const filterPriceBinEl = document.getElementById('filter-price-bin');
+  if (filterPriceBinEl && filterPriceBinEl.children.length === 0) {
+    let html = `<label class="checkbox-label">
+      <input type="checkbox" value="all" checked>
+      <strong>(All)</strong>
+    </label>`;
+    for (const b of HEATMAP_PRICE_BINS) {
+      html += `<label class="checkbox-label"><input type="checkbox" value="${b}" checked> ${priceBinLabel(b)}</label>`;
+    }
+    filterPriceBinEl.innerHTML = html;
   }
 }
 
+function handleFilterChange(e, containerEl, callback) {
+  if (e.target.tagName !== 'INPUT') return;
+  const allCb = containerEl.querySelector('input[value="all"]');
+  const otherCbs = containerEl.querySelectorAll('input:not([value="all"])');
+
+  if (e.target === allCb) {
+    otherCbs.forEach(cb => cb.checked = e.target.checked);
+  } else {
+    allCb.checked = Array.from(otherCbs).every(c => c.checked);
+  }
+  (callback ?? updateCharts)();
+}
+
 function getFilters() {
+  const getChecked = (el) => Array.from(el?.querySelectorAll('input:not([value="all"]):checked') || []).map(cb => cb.value);
   return {
-    roomType: filterRoomEl?.value ?? "all",
-    borough: filterBoroughEl?.value ?? "all",
-    excludeZero: document.getElementById("filter-exclude-0")?.checked ?? false,
-    neighborhood: _selectedNeighborhood ?? "all",
+    roomType: getChecked(filterRoomEl),
+    borough: getChecked(filterBoroughEl),
+    excludeZero: document.getElementById('filter-exclude-0')?.checked ?? false,
   };
 }
 
@@ -83,7 +124,7 @@ function rowsForChart1(f) {
     excludeZero: f.excludeZero,
     // Note: chart 1 usually doesn't filter by neighborhood to keep context, 
     // but here we might want to if specified.
-    neighborhood: "all", 
+    neighborhood: "all",
   });
 }
 
@@ -100,37 +141,39 @@ function updateCharts() {
   const r1 = rowsForChart1(f);
   const r2 = rowsForChart2(f);
 
-  const parts = [
-    `Listings: ${r2.length.toLocaleString()} / ${allRows.length.toLocaleString()}`,
-  ];
-  if (f.roomType !== "all")
-    parts.push(document.querySelector("#filter-room option:checked")?.text ?? "");
-  if (f.borough !== "all") parts.push(f.borough);
-  if (_selectedNeighborhood) parts.push(`📍 ${_selectedNeighborhood}`);
-  
-  setStatus(parts.join(" · "));
+  const parts = [`Chart 2: ${r2.length.toLocaleString()} / ${allRows.length.toLocaleString()} listings`];
+  if (f.roomType.length > 0 && f.roomType.length < ROOM_TYPES.length) parts.push(f.roomType.join(', '));
+  if (f.borough.length > 0 && f.borough.length < BOROUGHS.length) parts.push(f.borough.join(', '));
+  setStatus(parts.join(' · '));
 
-  chart2CardEl?.classList.toggle("chart-card--filtered", f.borough !== "all" || _selectedNeighborhood);
+  const hasBoroughFilter = f.borough.length > 0 && f.borough.length < BOROUGHS.length;
+  chart2CardEl?.classList.toggle('chart-card--filtered', hasBoroughFilter);
 
   if (chart2HintEl) {
-    let hint = "";
-    if (f.borough !== "all") hint = `Showing listings in ${f.borough}. `;
-    if (_selectedNeighborhood) hint += `Filtered by neighborhood: ${_selectedNeighborhood}. Click neighborhood again to clear.`;
-    chart2HintEl.textContent = hint;
-    chart2HintEl.hidden = !hint;
+    chart2HintEl.textContent = !hasBoroughFilter
+      ? ''
+      : `Chart 2 shows filtered listings only.`;
+    chart2HintEl.hidden = !hasBoroughFilter;
   }
 
   const responseData = aggregateResponseTimeByBorough(r1);
-  const selectedBorough = f.borough === "all" ? null : f.borough;
+  const selectedBorough = (f.borough.length === 1) ? f.borough[0] : null;
 
   renderResponseStack("#chart1", responseData, {
     selectedBorough,
     onBoroughClick: (borough) => {
       if (!filterBoroughEl) return;
-      const next = filterBoroughEl.value === borough ? "all" : borough;
-      filterBoroughEl.value = next;
-      // Reset neighborhood when changing borough
-      _selectedNeighborhood = null;
+      const allCb = filterBoroughEl.querySelector('input[value="all"]');
+      const otherCbs = filterBoroughEl.querySelectorAll('input:not([value="all"])');
+      const currentChecked = Array.from(otherCbs).filter(c => c.checked).map(c => c.value);
+
+      if (currentChecked.length === 1 && currentChecked[0] === borough) {
+        otherCbs.forEach(cb => cb.checked = true);
+        if (allCb) allCb.checked = true;
+      } else {
+        otherCbs.forEach(cb => cb.checked = (cb.value === borough));
+        if (allCb) allCb.checked = false;
+      }
       updateCharts();
     },
   });
@@ -160,8 +203,8 @@ function updateCharts() {
     },
   };
 
-  renderListingBubbleMap("#chart12", allRows, borough, neighborhoodOptions);
-  renderNeighborhoodBarChart("#chart13", allRows, borough, neighborhoodOptions);
+  renderListingBubbleMap("#chart12", r2, borough, neighborhoodOptions);
+  renderNeighborhoodBarChart("#chart13", r2, borough, neighborhoodOptions);
 }
 
 function buildChart3Legend(types) {
@@ -182,16 +225,20 @@ function updateChart4() {
   if (!allRows) return;
   const f = getFilters();
   const r1 = rowsForChart1(f);
-  // Also filter chart 4 by neighborhood if selected
-  const r4 = _selectedNeighborhood 
-    ? r1.filter(r => r.neighbourhood_cleansed === _selectedNeighborhood)
-    : r1;
-    
-  const heatmapData = aggregateHeatmap(r4);
-  renderHeatmap("#chart4", heatmapData, {
+  const heatmapData = aggregateHeatmap(r1);
+
+  const getCheckedValues = (id) => {
+    const el = document.getElementById(id);
+    return Array.from(el?.querySelectorAll('input:not([value="all"]):checked') || []).map(cb => cb.value);
+  };
+
+  const accChecked = getCheckedValues('filter-acc');
+  const priceChecked = getCheckedValues('filter-price-bin');
+
+  renderHeatmap('#chart4', heatmapData, {
     roomFilter: f.roomType,
-    accFilter: document.getElementById("filter-acc")?.value ?? "all",
-    priceBinFilter: document.getElementById("filter-price-bin")?.value ?? "all",
+    accFilter: accChecked,
+    priceBinFilter: priceChecked,
   });
 }
 
@@ -205,36 +252,32 @@ async function main() {
 
     // Initial render
     updateCharts();
-
-    // Event Listeners
-    document.getElementById("filter-room")?.addEventListener("change", () => {
+    document.getElementById('filter-room')?.addEventListener('change', (e) => handleFilterChange(e, document.getElementById('filter-room')));
+    document.getElementById('filter-borough')?.addEventListener('change', (e) => {
       _selectedNeighborhood = null;
-      updateCharts();
+      handleFilterChange(e, document.getElementById('filter-borough'));
     });
-    document.getElementById("filter-borough")?.addEventListener("change", () => {
-      _selectedNeighborhood = null;
-      updateCharts();
-    });
-    document.getElementById("filter-exclude-0")?.addEventListener("change", updateCharts);
+    document.getElementById('filter-exclude-0')?.addEventListener('change', updateCharts);
 
-    document.getElementById("filter-acc")?.addEventListener("change", updateChart4);
-    document.getElementById("filter-price-bin")?.addEventListener("change", updateChart4);
+    document.getElementById('filter-acc')?.addEventListener('change', (e) => handleFilterChange(e, document.getElementById('filter-acc'), updateChart4));
+    document.getElementById('filter-price-bin')?.addEventListener('change', (e) => handleFilterChange(e, document.getElementById('filter-price-bin'), updateChart4));
 
-    document.getElementById("filter-heatmap-reset")?.addEventListener("click", () => {
-      if (document.getElementById("filter-acc")) document.getElementById("filter-acc").value = "all";
-      if (document.getElementById("filter-price-bin")) document.getElementById("filter-price-bin").value = "all";
+    document.getElementById('filter-heatmap-reset')?.addEventListener('click', () => {
+      document.getElementById('filter-acc')?.querySelectorAll('input').forEach(cb => cb.checked = true);
+      document.getElementById('filter-price-bin')?.querySelectorAll('input').forEach(cb => cb.checked = true);
       updateChart4();
     });
 
-    document.getElementById("filter-reset")?.addEventListener("click", () => {
-      if (document.getElementById("filter-room")) document.getElementById("filter-room").value = "all";
-      if (document.getElementById("filter-borough")) document.getElementById("filter-borough").value = "all";
-      if (document.getElementById("filter-acc")) document.getElementById("filter-acc").value = "all";
-      if (document.getElementById("filter-price-bin")) document.getElementById("filter-price-bin").value = "all";
-      if (document.getElementById("filter-exclude-0")) document.getElementById("filter-exclude-0").checked = false;
+    document.getElementById('filter-reset')?.addEventListener('click', () => {
+      document.getElementById('filter-room')?.querySelectorAll('input').forEach(cb => cb.checked = true);
+      document.getElementById('filter-borough')?.querySelectorAll('input').forEach(cb => cb.checked = true);
+      document.getElementById('filter-acc')?.querySelectorAll('input').forEach(cb => cb.checked = true);
+      document.getElementById('filter-price-bin')?.querySelectorAll('input').forEach(cb => cb.checked = true);
+      if (document.getElementById('filter-exclude-0')) document.getElementById('filter-exclude-0').checked = false;
       _selectedNeighborhood = null;
       updateCharts();
     });
+
 
     // ── Chart 6: Instant Bookable (static overview, no filter) ──
     function updateChart6() {
