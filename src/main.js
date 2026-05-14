@@ -187,12 +187,14 @@ function updateCharts() {
   renderStackBarChart("#chart3", preferredData);
   buildChart3Legend(preferredData.types);
 
-  // Chart 5 - Rating Pie (shows all 5 boroughs, uses room filter only)
-  const pieData = aggregateRatingDistributionByBorough(r1);
-  renderRatingPie("#chart5", pieData);
+  // Chart 5 - Rating Pie (shows all 5 boroughs, uses its OWN room filter)
+  updateChart5();
 
   // Chart 4 - Heatmap
   updateChart4();
+
+  // Chart 6 - Instant Bookable (re-render to update borough highlight)
+  updateChart6();
 
   // Update New Charts (12 & 13)
   const borough = f.borough;
@@ -243,6 +245,47 @@ function updateChart4() {
   });
 }
 
+/** Borough click helper — shared by Chart 5, 6 */
+function boroughClickHandler(borough) {
+  if (!filterBoroughEl) return;
+  const allCb = filterBoroughEl.querySelector('input[value="all"]');
+  const otherCbs = filterBoroughEl.querySelectorAll('input:not([value="all"])');
+  const currentChecked = Array.from(otherCbs).filter(c => c.checked).map(c => c.value);
+
+  if (currentChecked.length === 1 && currentChecked[0] === borough) {
+    otherCbs.forEach(cb => cb.checked = true);
+    if (allCb) allCb.checked = true;
+  } else {
+    otherCbs.forEach(cb => cb.checked = (cb.value === borough));
+    if (allCb) allCb.checked = false;
+  }
+  updateCharts();
+}
+
+/** Chart 5 uses global room filter (all boroughs always shown). */
+function updateChart5() {
+  if (!allRows) return;
+  const f = getFilters();
+  const rows = filterListings(allRows, { roomType: f.roomType, borough: "all" });
+  const pieData = aggregateRatingDistributionByBorough(rows);
+  renderRatingPie("#chart5", pieData, {
+    selectedBorough: (f.borough.length === 1) ? f.borough[0] : null,
+    onBoroughClick: boroughClickHandler,
+  });
+}
+
+/** Chart 6 uses global room filter. */
+function updateChart6() {
+  if (!allRows) return;
+  const f = getFilters();
+  const rows = filterListings(allRows, { roomType: f.roomType, borough: "all" });
+  const ibData = aggregateInstantBookable(rows);
+  renderInstantBookableChart("#chart6", ibData, {
+    selectedBorough: (f.borough.length === 1) ? f.borough[0] : null,
+    onBoroughClick: boroughClickHandler,
+  });
+}
+
 async function main() {
   setStatus("Loading listings.csv…");
   fillFilterSelects();
@@ -278,15 +321,6 @@ async function main() {
       _selectedNeighborhood = null;
       updateCharts();
     });
-
-
-    // ── Chart 6: Instant Bookable (static overview, no filter) ──
-    function updateChart6() {
-      if (!allRows) return;
-      const ibData = aggregateInstantBookable(allRows);
-      renderInstantBookableChart("#chart6", ibData);
-    }
-    updateChart6();
 
   } catch (e) {
     console.error(e);

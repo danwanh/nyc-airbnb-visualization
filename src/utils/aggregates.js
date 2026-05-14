@@ -335,9 +335,9 @@ export function aggregateRatingDistribution(rows) {
   }
 
   return [
-    { group: 'Cao (≥4.5)', key: 'high', count: high },
-    { group: 'Trung (4.0–4.5)', key: 'mid', count: mid },
-    { group: 'Thấp (<4.0)', key: 'low', count: low },
+    { group: 'High (≥4.5)', key: 'high', count: high },
+    { group: 'Mid (4.0–4.5)', key: 'mid', count: mid },
+    { group: 'Low (<4.0)', key: 'low', count: low },
   ];
 }
 
@@ -372,9 +372,9 @@ export function aggregateRatingDistributionByBorough(rows) {
   for (const b of BOROUGHS) {
     const c = result[b];
     out[b] = [
-      { group: 'Cao (≥4.5)',      key: 'high', count: c.high },
-      { group: 'Trung (4.0–4.5)', key: 'mid',  count: c.mid  },
-      { group: 'Thấp (<4.0)',     key: 'low',  count: c.low  },
+      { group: 'High (≥4.5)',     key: 'high', count: c.high },
+      { group: 'Mid (4.0–4.5)',   key: 'mid',  count: c.mid  },
+      { group: 'Low (<4.0)',      key: 'low',  count: c.low  },
     ];
   }
 
