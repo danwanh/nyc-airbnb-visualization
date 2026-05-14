@@ -27,17 +27,18 @@ export function responseLabel(key) {
 }
 
 /**
-/**
- * @param {{ roomType?: string, borough?: string, excludeZero?: boolean }} f
+ * @param {{ roomType?: string, borough?: string, excludeZero?: boolean, neighborhood?: string }} f
  */
 export function filterListings(rows, f = {}) {
   const room = f.roomType ?? 'all';
   const borough = f.borough ?? 'all';
+  const neighborhood = f.neighborhood ?? 'all';
   const excludeZero = f.excludeZero ?? false;
 
   return rows.filter((row) => {
     if (room !== 'all' && row.room_type !== room) return false;
     if (borough !== 'all' && row.neighbourhood_group_cleansed !== borough) return false;
+    if (neighborhood !== 'all' && row.neighbourhood_cleansed !== neighborhood) return false;
     
     if (excludeZero) {
       const price = _parsePrice(row.price);

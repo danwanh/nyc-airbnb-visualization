@@ -1,8 +1,9 @@
 /**
- * sheet12BubbleMap.js — Listing Density by Neighbourhood (Sheet 12)
+ * ListingBubbleMap.js — Listing Density by Neighbourhood
  * Bubble map: AVG(longitude) on X, AVG(latitude) on Y, size = CNT(id), color = borough
  */
 import * as d3 from "d3";
+import { chartTooltip } from "../components/tooltip.js";
 
 const GEOJSON_URL =
   "https://raw.githubusercontent.com/dwillis/nyc-maps/master/boroughs.geojson";
@@ -54,14 +55,17 @@ function aggregateByNeighbourhood(rows, boroughFilter = "all") {
   }));
 }
 
-export async function renderSheet12(
-  svgEl,
+export async function renderListingBubbleMap(
+  selector,
   rows,
   boroughFilter = "all",
   options = {},
 ) {
   const { selectedNeighborhood = null, onNeighborhoodClick } = options;
-  const svg = d3.select(svgEl);
+  const svg = d3.select(selector);
+  if (svg.empty()) return;
+  const svgEl = svg.node();
+  
   svg.selectAll("*").remove();
 
   const W = svgEl.clientWidth || 600;
@@ -70,7 +74,7 @@ export async function renderSheet12(
   svg.attr("width", W).attr("height", H);
 
   // Background
-  svg.append("rect").attr("width", W).attr("height", H).attr("fill", "#f5f5f5");
+  svg.append("rect").attr("width", W).attr("height", H).attr("fill", "#f8fafc");
 
   const g = svg.append("g");
 
@@ -111,10 +115,10 @@ export async function renderSheet12(
       .attr("fill", (feat) => {
         const name = feat.properties.BoroName || feat.properties.name || "";
         const dimmed = boroughFilter !== "all" && name !== boroughFilter;
-        return dimmed ? "#e8e8e8" : "#dde3ea";
+        return dimmed ? "#f1f5f9" : "#e2e8f0";
       })
-      .attr("stroke", "#b0b8c2")
-      .attr("stroke-width", 0.8);
+      .attr("stroke", "#cbd5e1")
+      .attr("stroke-width", 0.5);
   }
 
   // Neighbourhood bubbles
@@ -136,44 +140,49 @@ export async function renderSheet12(
     .attr("cy", (d) => projection([d.lng, d.lat])[1])
     .attr("r", (d) => baseRScale(d.count))
     .attr("fill", (d) => BOROUGH_COLORS[d.borough] || "#888")
-    .attr("fill-opacity", (d) =>
-      selectedNeighborhood && d.neighbourhood !== selectedNeighborhood
-        ? 0.24
-        : 0.72,
-    )
+    .attr("fill-opacity", (d) => {
+       if (!selectedNeighborhood) return 0.72;
+       return d.neighbourhood === selectedNeighborhood ? 0.95 : 0.15;
+    })
     .attr("stroke", (d) =>
-      d.neighbourhood === selectedNeighborhood ? "#4338ca" : "#fff",
+      d.neighbourhood === selectedNeighborhood ? "#0f172a" : "#fff",
     )
     .attr("stroke-width", (d) =>
-      d.neighbourhood === selectedNeighborhood ? 2 : 0.6,
+      d.neighbourhood === selectedNeighborhood ? 1.5 : 0.6,
     )
     .style("cursor", "pointer")
     .on("mouseenter", function (event, d) {
-      if (d.neighbourhood !== selectedNeighborhood) {
-        d3.select(this).attr("stroke", "#000").attr("stroke-width", 1.2);
+      if (!selectedNeighborhood || d.neighbourhood === selectedNeighborhood) {
+        d3.select(this).attr("fill-opacity", 1).attr("stroke", "#0f172a");
       }
+      const html = `
+        <div style="font-weight:600; margin-bottom:4px;">${d.neighbourhood}</div>
+        <div style="font-size:11px; color:#64748b; margin-bottom:4px;">${d.borough}</div>
+        <div style="font-size:13px; font-weight:600; color:#0f172a;">${d.count.toLocaleString()}</div>
+        <div style="font-size:10px; color:#94a3b8; margin-top:4px;">Total Listings</div>
+      `;
+      chartTooltip.show(html, event.clientX, event.clientY);
+    })
+    .on("mousemove", (event) => {
+      chartTooltip.move(event.clientX, event.clientY);
     })
     .on("mouseleave", function (event, d) {
-      if (d.neighbourhood !== selectedNeighborhood) {
-        d3.select(this).attr("stroke", "#fff").attr("stroke-width", 0.6);
-      }
-    })
-    .on("mousemove", function (event, d) {
-      const tooltip = document.getElementById("sheet12-tip");
-      if (!tooltip) return;
-      tooltip.style.display = "block";
-      tooltip.style.left = event.clientX + 14 + "px";
-      tooltip.style.top = event.clientY - 10 + "px";
-      tooltip.innerHTML = `<strong>${d.neighbourhood}</strong><br>${d.borough}<br>${d.count.toLocaleString()} listings`;
+      d3.select(this)
+        .attr("fill-opacity", (d) => {
+          if (!selectedNeighborhood) return 0.72;
+          return d.neighbourhood === selectedNeighborhood ? 0.95 : 0.15;
+        })
+        .attr("stroke", (d) =>
+          d.neighbourhood === selectedNeighborhood ? "#0f172a" : "#fff",
+        );
+      chartTooltip.hide();
     })
     .on("click", function (event, d) {
       event.stopPropagation();
-      const tooltip = document.getElementById("sheet12-tip");
-      if (tooltip) tooltip.style.display = "none";
       onNeighborhoodClick?.(d.neighbourhood);
     });
 
-  // Labels for all neighbourhoods (initially visible for top 8)
+  // Labels
   let labels = contentGroup
     .selectAll("text.bubble-lbl")
     .data(sorted)
@@ -182,20 +191,18 @@ export async function renderSheet12(
     .attr("x", (d) => projection([d.lng, d.lat])[0])
     .attr("y", (d) => projection([d.lng, d.lat])[1] + baseRScale(d.count) + 16)
     .attr("text-anchor", "middle")
-    .attr("fill", "#333")
+    .attr("fill", "#475569")
     .attr("font-size", 6)
     .attr("opacity", 0)
     .attr("pointer-events", "none")
-    .text((d) => `${d.neighbourhood} (${d.count})`);
+    .text((d) => d.neighbourhood);
 
-  // Zoom handler - apply transform to all content (map, bubbles, labels)
+  // Zoom handler
   const zoom = d3
     .zoom()
     .scaleExtent([0.5, 20])
     .on("zoom", (ev) => {
       contentGroup.attr("transform", ev.transform);
-
-      // Adjust bubble radius and label placement to keep the view readable while zooming
       const scale = Math.max(ev.transform.k, 0.8);
       const radiusCorrection = 1 / scale;
       bubbles.attr("r", (d) => baseRScale(d.count) * radiusCorrection);
@@ -207,7 +214,7 @@ export async function renderSheet12(
           16,
       );
 
-      const minZoomForLabels = 2.2; // show labels only when zoomed in enough
+      const minZoomForLabels = 2.2;
       if (scale < minZoomForLabels) {
         labels.attr("opacity", 0);
       } else {
@@ -236,18 +243,21 @@ export async function renderSheet12(
     .attr("width", 150)
     .attr("height", 0)
     .attr("fill", "#fff")
-    .attr("stroke", "#ccc")
+    .attr("stroke", "#e2e8f0")
     .attr("stroke-width", 0.5)
     .attr("rx", 8)
-    .attr("opacity", 0.95);
+    .attr("opacity", 0.9);
+    
   legG
     .append("text")
     .attr("x", lx)
     .attr("y", ly)
     .attr("text-anchor", "middle")
     .attr("font-size", 9)
-    .attr("fill", "#555")
-    .text("Count of id");
+    .attr("font-weight", 600)
+    .attr("fill", "#475569")
+    .text("Listings Count");
+    
   ly += 14;
   legSizes.forEach((s) => {
     const r = baseRScale(s);
@@ -258,14 +268,14 @@ export async function renderSheet12(
       .attr("cy", ly)
       .attr("r", r)
       .attr("fill", "none")
-      .attr("stroke", "#999")
+      .attr("stroke", "#94a3b8")
       .attr("stroke-width", 1);
     legG
       .append("text")
       .attr("x", lx + r + 5)
       .attr("y", ly + 4)
       .attr("font-size", 8)
-      .attr("fill", "#666")
+      .attr("fill", "#64748b")
       .text(s >= 1000 ? `${s / 1000}k` : s);
     ly += r + 6;
   });
@@ -276,11 +286,12 @@ export async function renderSheet12(
     if (i === 0) {
       legG
         .append("text")
-        .attr("x", lx - 30)
+        .attr("x", lx - 40)
         .attr("y", cy2 - 10)
         .attr("font-size", 9)
-        .attr("fill", "#555")
-        .text("neighbourhood_group");
+        .attr("font-weight", 600)
+        .attr("fill", "#475569")
+        .text("Borough");
       cy2 += 2;
     }
     legG
@@ -294,9 +305,9 @@ export async function renderSheet12(
     legG
       .append("text")
       .attr("x", lx - 24)
-      .attr("y", cy2 + 2)
+      .attr("y", cy2 + 1)
       .attr("font-size", 9)
-      .attr("fill", "#444")
+      .attr("fill", "#64748b")
       .text(name);
     cy2 += 16;
   });
