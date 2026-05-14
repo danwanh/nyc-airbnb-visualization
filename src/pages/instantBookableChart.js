@@ -1,12 +1,6 @@
 import * as d3 from "d3";
 import { chartTooltip, formatTooltip } from "../components/tooltip.js";
-import { CHROME } from "../utils/palette.js";
-
-/** Stacked segment colours */
-const IB_COLORS = {
-  instant: "#059669", // green — Instant Bookable
-  notInstant: "#94a3b8", // muted grey — Requires Approval
-};
+import { CHROME, IB_COLORS } from "../utils/palette.js";
 
 const IB_LABELS = {
   instant: "Instant Bookable",

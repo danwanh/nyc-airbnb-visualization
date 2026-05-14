@@ -104,10 +104,10 @@ const REVIEW_DIMS = [
 ];
 
 export const ROOM_TYPES = [
-  { csv: 'Entire home/apt', key: 'entire', color: '#2563eb', label: 'Entire home/apt' },
-  { csv: 'Hotel room', key: 'hotel', color: '#c2410c', label: 'Hotel room' },
-  { csv: 'Private room', key: 'private', color: '#be185d', label: 'Private room' },
-  { csv: 'Shared room', key: 'shared', color: '#0f766e', label: 'Shared room' },
+  { csv: 'Entire home/apt', key: 'entire', color: ROOM_TYPE_COLORS['Entire home/apt'], label: 'Entire home/apt' },
+  { csv: 'Hotel room', key: 'hotel', color: ROOM_TYPE_COLORS['Hotel room'], label: 'Hotel room' },
+  { csv: 'Private room', key: 'private', color: ROOM_TYPE_COLORS['Private room'], label: 'Private room' },
+  { csv: 'Shared room', key: 'shared', color: ROOM_TYPE_COLORS['Shared room'], label: 'Shared room' },
 ];
 
 function num(v) {
@@ -272,13 +272,8 @@ export function aggregateHeatmap(rows) {
 }
 
 
-/** Colors for the preferred room type stacked bar chart (matches Tableau palette). */
-export const ROOM_TYPE_COLORS = {
-  'Entire home/apt': '#b08fa8',
-  'Hotel room': '#c9b84a',
-  'Private room': '#2e6b4f',
-  'Shared room': '#c4622a',
-};
+import { ROOM_TYPE_COLORS } from "./palette.js";
+export { ROOM_TYPE_COLORS };
 
 /** Ordered room types for stacking (bottom → top). */
 export const ROOM_TYPE_STACK_ORDER = [

@@ -6,18 +6,21 @@ import {
 } from "../utils/aggregates.js";
 import { chartTooltip, formatTooltip } from "../components/tooltip.js";
 
+import { HEATMAP_COLORS } from "../utils/palette.js";
+
 function heatBg(val, max) {
   if (val === 0) return "transparent";
-  const t = Math.pow(val / max, 0.5);
-  const r = 255;
-  const g = Math.round(255 - t * (255 - 130));
-  const b = Math.round(255 - t * (255 - 40));
-  return `rgb(${r},${g},${b})`;
+  const t = val / max;
+  const idx = Math.min(
+    HEATMAP_COLORS.length - 1,
+    Math.floor(t * HEATMAP_COLORS.length),
+  );
+  return HEATMAP_COLORS[idx];
 }
 
 function heatText(val, max) {
   if (val === 0) return "#94a3b8";
-  return val / max > 0.55 ? "#4a1b0c" : "#1f2937";
+  return val / max > 0.6 ? "#ffffff" : "#1f2937";
 }
 
 function normalizeFilter(filter, fallback) {
