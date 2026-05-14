@@ -4,13 +4,13 @@ import { CHROME } from '../utils/palette.js';
 
 /** Stacked segment colours */
 const IB_COLORS = {
-  instant:    '#059669',  // green — Đặt ngay
-  notInstant: '#94a3b8',  // muted grey — Phải duyệt đơn
+  instant:    '#059669',  // green — Instant Bookable
+  notInstant: '#94a3b8',  // muted grey — Requires Approval
 };
 
 const IB_LABELS = {
-  instant:    'Đặt ngay',
-  notInstant: 'Phải duyệt đơn',
+  instant:    'Instant Bookable',
+  notInstant: 'Requires Approval',
 };
 
 /**
@@ -21,8 +21,12 @@ const IB_LABELS = {
  *
  * @param {string} containerSelector  CSS selector of <svg>
  * @param {{ roomTypes: string[], boroughs: string[], data: object }} aggData
+ * @param {object} [options]
+ * @param {string|null} [options.selectedBorough]  Currently selected borough
+ * @param {function}     [options.onBoroughClick]   Called with borough name when bar is clicked
  */
-export function renderInstantBookableChart(containerSelector, aggData) {
+export function renderInstantBookableChart(containerSelector, aggData, options = {}) {
+  const { selectedBorough = null, onBoroughClick } = options;
   const { roomTypes, boroughs, data } = aggData;
 
   const panelCount = roomTypes.length;          // 4
@@ -54,7 +58,7 @@ export function renderInstantBookableChart(containerSelector, aggData) {
       .attr('text-anchor', 'middle')
       .attr('fill', CHROME.tick)
       .attr('font-size', 13)
-      .text('Không có dữ liệu.');
+      .text('No data available.');
     return;
   }
 
@@ -111,6 +115,9 @@ export function renderInstantBookableChart(containerSelector, aggData) {
       const bx = xScale(borough);
       const bw = xScale.bandwidth();
 
+      // Opacity for dimming non-selected boroughs
+      const barOpacity = selectedBorough && selectedBorough !== borough ? 0.25 : 1;
+
       // Bottom segment: notInstant
       const niH = yScale(0) - yScale(cell.notInstant);
       const niY = yScale(cell.notInstant);
@@ -124,14 +131,16 @@ export function renderInstantBookableChart(containerSelector, aggData) {
         .attr('fill', IB_COLORS.notInstant)
         .attr('rx', 2)
         .attr('cursor', 'pointer')
+        .attr('opacity', barOpacity)
+        .on('click', () => { if (onBoroughClick) onBoroughClick(borough); })
         .on('mouseenter', (event) => {
           const pct = cell.total > 0 ? ((cell.notInstant / cell.total) * 100).toFixed(1) : '0.0';
           chartTooltip.show(
             `<span style="color:#6b6b67">Room Type:</span> <strong>${rt}</strong><br/>` +
             `<span style="color:#6b6b67">Borough:</span> <strong>${borough}</strong><br/>` +
-            `<span style="color:#6b6b67">Instant Bookable:</span> <strong>${IB_LABELS.notInstant}</strong><br/>` +
-            `<span style="color:#6b6b67">Số listing:</span> <strong>${d3.format(',')(cell.notInstant)}</strong><br/>` +
-            `<span style="color:#6b6b67">Tỉ lệ:</span> <strong>${pct}%</strong>`,
+            `<span style="color:#6b6b67">Status:</span> <strong>${IB_LABELS.notInstant}</strong><br/>` +
+            `<span style="color:#6b6b67">Listings:</span> <strong>${d3.format(',')(cell.notInstant)}</strong><br/>` +
+            `<span style="color:#6b6b67">Share:</span> <strong>${pct}%</strong>`,
             event.clientX,
             event.clientY,
           );
@@ -166,14 +175,16 @@ export function renderInstantBookableChart(containerSelector, aggData) {
         .attr('fill', IB_COLORS.instant)
         .attr('rx', 2)
         .attr('cursor', 'pointer')
+        .attr('opacity', barOpacity)
+        .on('click', () => { if (onBoroughClick) onBoroughClick(borough); })
         .on('mouseenter', (event) => {
           const pct = cell.total > 0 ? ((cell.instant / cell.total) * 100).toFixed(1) : '0.0';
           chartTooltip.show(
             `<span style="color:#6b6b67">Room Type:</span> <strong>${rt}</strong><br/>` +
             `<span style="color:#6b6b67">Borough:</span> <strong>${borough}</strong><br/>` +
-            `<span style="color:#6b6b67">Instant Bookable:</span> <strong>${IB_LABELS.instant}</strong><br/>` +
-            `<span style="color:#6b6b67">Số listing:</span> <strong>${d3.format(',')(cell.instant)}</strong><br/>` +
-            `<span style="color:#6b6b67">Tỉ lệ:</span> <strong>${pct}%</strong>`,
+            `<span style="color:#6b6b67">Status:</span> <strong>${IB_LABELS.instant}</strong><br/>` +
+            `<span style="color:#6b6b67">Listings:</span> <strong>${d3.format(',')(cell.instant)}</strong><br/>` +
+            `<span style="color:#6b6b67">Share:</span> <strong>${pct}%</strong>`,
             event.clientX,
             event.clientY,
           );
@@ -234,5 +245,5 @@ export function renderInstantBookableChart(containerSelector, aggData) {
     .attr('text-anchor', 'middle')
     .attr('fill', CHROME.caption)
     .attr('font-size', 11)
-    .text('Neighbourhood Group · Stacked by Instant Bookable (green = Đặt ngay)');
+    .text('Borough · Stacked by Instant Bookable (green = Yes)');
 }
