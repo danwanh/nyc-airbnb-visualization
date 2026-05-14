@@ -21,8 +21,12 @@ const IB_LABELS = {
  *
  * @param {string} containerSelector  CSS selector of <svg>
  * @param {{ roomTypes: string[], boroughs: string[], data: object }} aggData
+ * @param {object} [options]
+ * @param {string|null} [options.selectedBorough]  Currently selected borough
+ * @param {function}     [options.onBoroughClick]   Called with borough name when bar is clicked
  */
-export function renderInstantBookableChart(containerSelector, aggData) {
+export function renderInstantBookableChart(containerSelector, aggData, options = {}) {
+  const { selectedBorough = null, onBoroughClick } = options;
   const { roomTypes, boroughs, data } = aggData;
 
   const panelCount = roomTypes.length;          // 4
@@ -124,6 +128,8 @@ export function renderInstantBookableChart(containerSelector, aggData) {
         .attr('fill', IB_COLORS.notInstant)
         .attr('rx', 2)
         .attr('cursor', 'pointer')
+        .attr('opacity', selectedBorough && selectedBorough !== borough ? 0.25 : 1)
+        .on('click', () => { if (onBoroughClick) onBoroughClick(borough); })
         .on('mouseenter', (event) => {
           const pct = cell.total > 0 ? ((cell.notInstant / cell.total) * 100).toFixed(1) : '0.0';
           chartTooltip.show(
@@ -166,6 +172,8 @@ export function renderInstantBookableChart(containerSelector, aggData) {
         .attr('fill', IB_COLORS.instant)
         .attr('rx', 2)
         .attr('cursor', 'pointer')
+        .attr('opacity', selectedBorough && selectedBorough !== borough ? 0.25 : 1)
+        .on('click', () => { if (onBoroughClick) onBoroughClick(borough); })
         .on('mouseenter', (event) => {
           const pct = cell.total > 0 ? ((cell.instant / cell.total) * 100).toFixed(1) : '0.0';
           chartTooltip.show(

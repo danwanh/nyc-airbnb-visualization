@@ -149,6 +149,9 @@ function updateCharts() {
 
   // Chart 4 - Heatmap uses r1 (filtered by roomType only) + its own internal controls
   updateChart4();
+
+  // Chart 6 - Instant Bookable (re-render to update borough highlight)
+  updateChart6();
 }
 
 function buildChart3Legend(types) {
@@ -183,7 +186,16 @@ function updateChart5() {
   const localRoom = document.getElementById("filter-chart5-room")?.value ?? "all";
   const rows = filterListings(allRows, { roomType: localRoom, borough: "all" });
   const pieData = aggregateRatingDistributionByBorough(rows);
-  renderRatingPie("#chart5", pieData);
+  const f = getFilters();
+  renderRatingPie("#chart5", pieData, {
+    selectedBorough: f.borough === "all" ? null : f.borough,
+    onBoroughClick: (borough) => {
+      if (!filterBoroughEl) return;
+      const next = filterBoroughEl.value === borough ? "all" : borough;
+      filterBoroughEl.value = next;
+      updateCharts();
+    },
+  });
 }
 
 /** Chart 6 uses its own local Room Type select (static, no global filter). */
@@ -194,7 +206,16 @@ function updateChart6() {
     ? allRows
     : allRows.filter((r) => r.room_type === localRoom);
   const ibData = aggregateInstantBookable(rows);
-  renderInstantBookableChart("#chart6", ibData);
+  const f = getFilters();
+  renderInstantBookableChart("#chart6", ibData, {
+    selectedBorough: f.borough === "all" ? null : f.borough,
+    onBoroughClick: (borough) => {
+      if (!filterBoroughEl) return;
+      const next = filterBoroughEl.value === borough ? "all" : borough;
+      filterBoroughEl.value = next;
+      updateCharts();
+    },
+  });
 }
 
 async function main() {
