@@ -13,19 +13,23 @@
 <p class="dashboard-title">Host Response &amp; Review Analytics</p>
 
 <div class="filters-bar" id="filters">
-  <label class="filter-field">
-    <span class="filter-label">Room type</span>
-    <select id="filter-room" class="filter-select" aria-label="Filter by room type"></select>
-  </label>
-  <label class="filter-field">
-    <span class="filter-label">Borough</span>
-    <select id="filter-borough" class="filter-select" aria-label="Filter by borough"></select>
-  </label>
-  <label class="filter-field" style="flex-direction:row; align-items:center; cursor:pointer;">
-    <input type="checkbox" id="filter-exclude-0" style="margin-right:6px;" />
-    <span class="filter-label" style="margin-bottom:0;">Exclude $0</span>
-  </label>
-  <button type="button" id="filter-reset" class="filter-reset">Reset filters</button>
+  <div class="filter-checkbox-pair">
+    <div class="filter-pair-col">
+      <span class="filter-label">Room type</span>
+      <div id="filter-room" class="filter-checkbox-group"></div>
+    </div>
+    <div class="filter-pair-col">
+      <span class="filter-label">Borough</span>
+      <div id="filter-borough" class="filter-checkbox-group"></div>
+    </div>
+  </div>
+  <div class="filter-extras">
+    <label class="checkbox-label" style="margin-bottom: 8px;">
+      <input type="checkbox" id="filter-exclude-0" />
+      <span>Exclude $0</span>
+    </label>
+    <button type="button" id="filter-reset" class="filter-reset">Reset filters</button>
+  </div>
 </div>
 
 <p id="chart-status" class="chart-status"></p>
@@ -84,25 +88,18 @@
         <div class="chart-title">Listing count by Room Type, Accommodates &amp; Price</div>
         <div class="chart-subtitle">Total Listings by Price Range, Room Type &amp; Accommodates</div>
       </div>
-      <div class="heatmap-controls" style="display:flex; gap:12px; align-items:center; margin-top: -4px;">
-        <label class="filter-field" style="margin-bottom:0;">
-          <span class="filter-label">Accommodates</span>
-          <select id="filter-acc" class="filter-select" aria-label="Filter by accommodates">
-            <option value="all">All</option>
-            <option value="1 guest">1 guest</option>
-            <option value="2 guests">2 guests</option>
-            <option value="3-4 guests">3-4 guests</option>
-            <option value="5-6 guests">5-6 guests</option>
-            <option value="7+ guests">7+ guests</option>
-          </select>
-        </label>
-        <label class="filter-field" style="margin-bottom:0;">
-          <span class="filter-label">Price Bin</span>
-          <select id="filter-price-bin" class="filter-select" aria-label="Filter by price bin">
-            <option value="all">All</option>
-          </select>
-        </label>
-        <button type="button" id="filter-heatmap-reset" class="filter-reset">Reset</button>
+      <div class="heatmap-controls">
+        <div class="filter-checkbox-pair filter-checkbox-pair--heatmap">
+          <div class="filter-pair-col">
+            <span class="filter-label">Accommodates</span>
+            <div id="filter-acc" class="filter-checkbox-group"></div>
+          </div>
+          <div class="filter-pair-col">
+            <span class="filter-label">Price Bin</span>
+            <div id="filter-price-bin" class="filter-checkbox-group"></div>
+          </div>
+        </div>
+        <button type="button" id="filter-heatmap-reset" class="filter-reset" style="align-self:flex-end;">Reset</button>
       </div>
     </div>
     <div id="chart4" style="flex:1; min-height:0;"></div>
@@ -166,7 +163,7 @@
   <div class="chart-card">
     <div class="chart-header">
       <div class="chart-title">Listing Density by Neighbourhood</div>
-      <div class="chart-subtitle">Bubble size = CNT(id) · Color = neighbourhood_group · Scroll-to-zoom · Double-click to reset</div>
+      <div class="chart-subtitle">Bubble size = CNT(id) · Click to filter all charts · Scroll-to-zoom · Double-click to reset zoom</div>
     </div>
     <div class="sheet12-wrap">
       <svg id="chart12" style="width:100%;height:480px;"></svg>
@@ -178,7 +175,7 @@
   <div class="chart-card">
     <div class="chart-header">
       <div class="chart-title">Median Price by Neighbourhood</div>
-      <div class="chart-subtitle">X = neighbourhood_cleansed · Y = MEDIAN(price) · Scroll horizontally for all bars</div>
+      <div class="chart-subtitle">X = Neighbourhood · Y = Median Price · Click a bar to filter all charts · Scroll horizontally</div>
     </div>
     <svg id="chart13" style="width:100%;height:520px;"></svg>
   </div>
