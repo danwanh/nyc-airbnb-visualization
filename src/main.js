@@ -31,6 +31,12 @@ import { renderNeighborhoodBarChart } from "./pages/NeighborhoodBarChart.js";
 let _heatmapData = null;
 let _selectedNeighborhood = null;
 
+// Stacked bar chart: selected segment { hood, roomType } or null
+let _selectedStackSegment = null;
+
+// Heatmap: selected cell { room, acc, bin } or null
+let _selectedHeatmapCell = null;
+
 const statusEl = document.getElementById("chart-status");
 const filterRoomEl = document.getElementById("filter-room");
 const filterBoroughEl = document.getElementById("filter-borough");
@@ -117,6 +123,33 @@ function getFilters() {
 
 let allRows = null;
 
+/**
+ * Helper: set the global Room Type checkbox filter to a single value,
+ * or restore all if roomType is null/undefined.
+ * Returns true if the filter actually changed.
+ */
+function setGlobalRoomFilter(roomType) {
+  if (!filterRoomEl) return;
+  const allCb = filterRoomEl.querySelector('input[value="all"]');
+  const otherCbs = filterRoomEl.querySelectorAll('input:not([value="all"])');
+  if (!roomType) {
+    // Restore all
+    otherCbs.forEach(cb => cb.checked = true);
+    if (allCb) allCb.checked = true;
+  } else {
+    const currentChecked = Array.from(otherCbs).filter(c => c.checked).map(c => c.value);
+    if (currentChecked.length === 1 && currentChecked[0] === roomType) {
+      // Already only this room → toggle off → restore all
+      otherCbs.forEach(cb => cb.checked = true);
+      if (allCb) allCb.checked = true;
+      return 'restored';
+    }
+    otherCbs.forEach(cb => cb.checked = (cb.value === roomType));
+    if (allCb) allCb.checked = false;
+  }
+  return 'changed';
+}
+
 /** Chart 1 uses room filter only so all boroughs stay visible; chart 2 uses room + borough. */
 function rowsForChart1(f) {
   return filterListings(allRows, {
@@ -184,7 +217,37 @@ function updateCharts() {
 
   // Chart 3 — preferred room type
   const preferredData = aggregatePreferredRoomType(r2);
-  renderStackBarChart("#chart3", preferredData);
+  renderStackBarChart("#chart3", preferredData, {
+    selectedBorough: (f.borough.length === 1) ? f.borough[0] : null,
+    selectedSegment: _selectedStackSegment,
+    onSegmentClick: (hood, roomType) => {
+      if (!filterBoroughEl) return;
+      const allCb = filterBoroughEl.querySelector('input[value="all"]');
+      const otherCbs = filterBoroughEl.querySelectorAll('input:not([value="all"])');
+      const currentChecked = Array.from(otherCbs).filter(c => c.checked).map(c => c.value);
+
+      if (!hood && !roomType) {
+        // Backdrop click -> restore all boroughs
+        _selectedStackSegment = null;
+        otherCbs.forEach(cb => cb.checked = true);
+        if (allCb) allCb.checked = true;
+        updateCharts();
+        return;
+      }
+
+      if (currentChecked.length === 1 && currentChecked[0] === hood) {
+        // Click same borough -> toggle off -> restore all
+        _selectedStackSegment = null;
+        otherCbs.forEach(cb => cb.checked = true);
+        if (allCb) allCb.checked = true;
+      } else {
+        _selectedStackSegment = { hood, roomType };
+        otherCbs.forEach(cb => cb.checked = (cb.value === hood));
+        if (allCb) allCb.checked = false;
+      }
+      updateCharts();
+    },
+  });
   buildChart3Legend(preferredData.types);
 
   // Chart 5 - Rating Pie (shows all 5 boroughs, uses room filter only)
@@ -240,6 +303,42 @@ function updateChart4() {
     roomFilter: f.roomType,
     accFilter: accChecked,
     priceBinFilter: priceChecked,
+    selectedCell: _selectedHeatmapCell,
+
+    // Cell click: filter room type globally + highlight acc/bin in heatmap only
+    onCellClick: (room, acc, bin) => {
+      if (!room && acc === null && bin === null) {
+        // Backdrop click → deselect
+        _selectedHeatmapCell = null;
+        setGlobalRoomFilter(null);
+        updateCharts();
+        return;
+      }
+
+      const isSame = _selectedHeatmapCell &&
+        _selectedHeatmapCell.room === room &&
+        _selectedHeatmapCell.acc === acc &&
+        _selectedHeatmapCell.bin === bin;
+
+      if (isSame) {
+        // Toggle off
+        _selectedHeatmapCell = null;
+        setGlobalRoomFilter(null);
+      } else {
+        _selectedHeatmapCell = { room, acc, bin };
+        const result = setGlobalRoomFilter(room);
+        if (result === 'restored') _selectedHeatmapCell = null;
+      }
+      // updateCharts re-renders everything including heatmap with new room filter
+      updateCharts();
+    },
+
+    // Room type label click (header column in heatmap) → same cross-chart filter
+    onRoomTypeClick: (roomType) => {
+      _selectedHeatmapCell = null;
+      const result = setGlobalRoomFilter(roomType);
+      updateCharts();
+    },
   });
 }
 
@@ -253,9 +352,14 @@ async function main() {
 
     // Initial render
     updateCharts();
-    document.getElementById('filter-room')?.addEventListener('change', (e) => handleFilterChange(e, document.getElementById('filter-room')));
+    document.getElementById('filter-room')?.addEventListener('change', (e) => {
+      _selectedStackSegment = null;
+      _selectedHeatmapCell = null;
+      handleFilterChange(e, document.getElementById('filter-room'));
+    });
     document.getElementById('filter-borough')?.addEventListener('change', (e) => {
       _selectedNeighborhood = null;
+      _selectedStackSegment = null;
       handleFilterChange(e, document.getElementById('filter-borough'));
     });
     document.getElementById('filter-exclude-0')?.addEventListener('change', updateCharts);
@@ -264,9 +368,13 @@ async function main() {
     document.getElementById('filter-price-bin')?.addEventListener('change', (e) => handleFilterChange(e, document.getElementById('filter-price-bin'), updateChart4));
 
     document.getElementById('filter-heatmap-reset')?.addEventListener('click', () => {
+      // Reset acc + price bin filters
       document.getElementById('filter-acc')?.querySelectorAll('input').forEach(cb => cb.checked = true);
       document.getElementById('filter-price-bin')?.querySelectorAll('input').forEach(cb => cb.checked = true);
-      updateChart4();
+      // Clear heatmap cell selection and room type filter from heatmap
+      _selectedHeatmapCell = null;
+      setGlobalRoomFilter(null); // restore all room types
+      updateCharts();
     });
 
     document.getElementById('filter-reset')?.addEventListener('click', () => {
@@ -276,6 +384,8 @@ async function main() {
       document.getElementById('filter-price-bin')?.querySelectorAll('input').forEach(cb => cb.checked = true);
       if (document.getElementById('filter-exclude-0')) document.getElementById('filter-exclude-0').checked = false;
       _selectedNeighborhood = null;
+      _selectedStackSegment = null;
+      _selectedHeatmapCell = null;
       updateCharts();
     });
 

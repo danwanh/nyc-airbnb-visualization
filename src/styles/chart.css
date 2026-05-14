@@ -406,8 +406,14 @@ svg text {
 }
 
 .heatmap-table td:hover {
-  outline: 1px solid #1a1a18;
-  opacity: 0.9;
+  outline: 1.5px solid #475569;
+  z-index: 2;
+  position: relative;
+}
+
+.heatmap-table td[data-val]:not([data-val="0"]) {
+  cursor: pointer;
+  transition: opacity 0.15s, box-shadow 0.15s;
 }
 
 .heatmap-table td.type-label {
@@ -422,6 +428,17 @@ svg text {
   position: sticky;
   left: 0;
   z-index: 5;
+  transition: background 0.2s;
+}
+
+.heatmap-table td.type-label:hover {
+  background: #eff0f3;
+}
+
+.heatmap-table td.type-label--selected {
+  background: #e0e7ff;
+  color: #3730a3;
+  box-shadow: inset 3px 0 0 #4f46e5;
 }
 
 .heatmap-table td.acc-label {
