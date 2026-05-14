@@ -5,13 +5,7 @@
 import * as d3 from "d3";
 import { chartTooltip, formatTooltip } from "../components/tooltip.js";
 
-const BOROUGH_COLORS = {
-  Bronx: "#2563eb",
-  Brooklyn: "#f97316",
-  Manhattan: "#dc2626",
-  Queens: "#16a34a",
-  "Staten Island": "#7c3aed",
-};
+import { BOROUGH_COLORS } from "../utils/palette.js";
 
 function parsePrice(v) {
   const n = parseFloat(String(v || "").replace(/[$,]/g, ""));
@@ -249,28 +243,4 @@ export function renderNeighborhoodBarChart(
     .ease(d3.easeCubicOut)
     .attr("y", (d) => y(d.medianPrice))
     .attr("height", (d) => iH - y(d.medianPrice));
-
-  // Borough color legend (right side)
-  const legX = iW + 12;
-  let legY = 20;
-  const legG = chartGroup.append("g");
-
-  Object.entries(BOROUGH_COLORS).forEach(([name, color]) => {
-    legG
-      .append("rect")
-      .attr("x", legX)
-      .attr("y", legY - 8)
-      .attr("width", 11)
-      .attr("height", 11)
-      .attr("fill", color)
-      .attr("rx", 2);
-    legG
-      .append("text")
-      .attr("x", legX + 15)
-      .attr("y", legY + 1)
-      .attr("font-size", 9)
-      .attr("fill", "#475569")
-      .text(name);
-    legY += 16;
-  });
 }

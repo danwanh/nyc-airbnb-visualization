@@ -10,7 +10,7 @@
   <main class="page-shell">
     <header class="page-header">
       <h1>Airbnb NYC Dashboard</h1>
-      <p class="dashboard-title">Host Response &amp; Review Analytics</p>
+      <p class="dashboard-title">NYC Airbnb Market Overview</p>
     </header>
 
     <section class="filters-bar" id="filters" aria-label="Dashboard filters">
@@ -36,10 +36,10 @@
         </div>
         <svg id="chart1" class="chart-svg"></svg>
         <div class="legend">
-          <div class="legend-item"><div class="legend-rect" style="background:#059669"></div> Within an hour</div>
-          <div class="legend-item"><div class="legend-rect" style="background:#0891b2"></div> Within a few hours</div>
-          <div class="legend-item"><div class="legend-rect" style="background:#ea580c"></div> Within a day</div>
-          <div class="legend-item"><div class="legend-rect" style="background:#4f46e5"></div> A few days or more</div>
+          <div class="legend-item"><div class="legend-rect" style="background:#117733"></div> Within an hour</div>
+          <div class="legend-item"><div class="legend-rect" style="background:#88CCEE"></div> Within a few hours</div>
+          <div class="legend-item"><div class="legend-rect" style="background:#DDCC77"></div> Within a day</div>
+          <div class="legend-item"><div class="legend-rect" style="background:#AA4499"></div> A few days or more</div>
         </div>
       </article>
 
@@ -49,10 +49,10 @@
         </div>
         <svg id="chart2" class="chart-svg"></svg>
         <div class="legend">
-          <div class="legend-item"><div class="legend-dot" style="background:#2563eb"></div> Entire home/apt</div>
-          <div class="legend-item"><div class="legend-dot" style="background:#c2410c"></div> Hotel room</div>
-          <div class="legend-item"><div class="legend-dot" style="background:#be185d"></div> Private room</div>
-          <div class="legend-item"><div class="legend-dot" style="background:#0f766e"></div> Shared room</div>
+          <div class="legend-item"><div class="legend-dot" style="background:#D55E00"></div> Entire home/apt</div>
+          <div class="legend-item"><div class="legend-dot" style="background:#44AA99"></div> Hotel room</div>
+          <div class="legend-item"><div class="legend-dot" style="background:#F0E442"></div> Private room</div>
+          <div class="legend-item"><div class="legend-dot" style="background:#882255"></div> Shared room</div>
         </div>
       </article>
 
@@ -90,9 +90,9 @@
         </div>
         <svg id="chart5" class="chart-svg" aria-label="Pie chart: rating distribution by borough"></svg>
         <div class="legend" id="chart5-legend">
-          <div class="legend-item"><div class="legend-rect" style="background:#2563eb"></div> High (&gt;= 4.5)</div>
-          <div class="legend-item"><div class="legend-rect" style="background:#ea580c"></div> Mid (4.0-4.5)</div>
-          <div class="legend-item"><div class="legend-rect" style="background:#dc2626"></div> Low (&lt; 4.0)</div>
+          <div class="legend-item"><div class="legend-rect" style="background:#332288"></div> High (&gt;= 4.5)</div>
+          <div class="legend-item"><div class="legend-rect" style="background:#E0E0E0"></div> Mid (4.0-4.5)</div>
+          <div class="legend-item"><div class="legend-rect" style="background:#AA4422"></div> Low (&lt; 4.0)</div>
         </div>
       </article>
 
@@ -102,8 +102,8 @@
         </div>
         <svg id="chart6" class="chart-svg" aria-label="Stacked bar: listing count by borough, room type and instant bookable"></svg>
         <div class="legend">
-          <div class="legend-item"><div class="legend-rect" style="background:#059669"></div> Instant Bookable</div>
-          <div class="legend-item"><div class="legend-rect" style="background:#94a3b8"></div> Requires Approval</div>
+          <div class="legend-item"><div class="legend-rect" style="background:#6699CC"></div> Instant Bookable</div>
+          <div class="legend-item"><div class="legend-rect" style="background:#999999"></div> Requires Approval</div>
         </div>
       </article>
 
@@ -114,7 +114,6 @@
         <div class="map-shell">
           <svg id="chart12" class="chart-svg chart-svg--map"></svg>
         </div>
-        <div class="legend" id="sheet12-legend"></div>
       </article>
 
       <article class="chart-card">
@@ -123,6 +122,10 @@
         </div>
         <svg id="chart13" class="chart-svg chart-svg--bars"></svg>
       </article>
+      
+      <div class="chart-card chart-card--wide shared-legend-wrap">
+        <div class="legend legend--centered" id="shared-borough-legend"></div>
+      </div>
     </section>
   </main>
 

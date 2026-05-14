@@ -9,13 +9,7 @@ const GEOJSON_URL =
   "https://raw.githubusercontent.com/dwillis/nyc-maps/master/boroughs.geojson";
 let _geoCache = null;
 
-const BOROUGH_COLORS = {
-  Bronx: "#2563eb",
-  Brooklyn: "#f97316",
-  Manhattan: "#dc2626",
-  Queens: "#16a34a",
-  "Staten Island": "#7c3aed",
-};
+import { BOROUGH_COLORS, CHROME } from "../utils/palette.js";
 
 /** Aggregate raw rows → per-neighbourhood { neighbourhood, borough, lat, lng, count } */
 function aggregateByNeighbourhood(rows, boroughFilter = "all") {
@@ -276,18 +270,18 @@ export async function renderListingBubbleMap(
   const lx = W - 80,
     ly0 = 20;
   let ly = ly0;
-  const legG = svg.append("g");
+  const legG = svg.append("g").attr("class", "map-legend");
   const legBg = legG
     .append("rect")
-    .attr("x", lx - 55)
-    .attr("y", ly0 - 12)
+    .attr("x", lx - 75)
+    .attr("y", ly0 - 15)
     .attr("width", 150)
     .attr("height", 0)
     .attr("fill", "#fff")
-    .attr("stroke", "#e2e8f0")
-    .attr("stroke-width", 0.5)
+    .attr("stroke", CHROME.grid)
+    .attr("stroke-width", 1)
     .attr("rx", 8)
-    .attr("opacity", 0.9);
+    .attr("opacity", 0.95);
 
   legG
     .append("text")
@@ -321,37 +315,5 @@ export async function renderListingBubbleMap(
     ly += r + 6;
   });
 
-  // Borough color legend
-  let cy2 = ly + 20;
-  Object.entries(BOROUGH_COLORS).forEach(([name, color], i) => {
-    if (i === 0) {
-      legG
-        .append("text")
-        .attr("x", lx - 40)
-        .attr("y", cy2 - 10)
-        .attr("font-size", 9)
-        .attr("font-weight", 600)
-        .attr("fill", "#475569")
-        .text("Borough");
-      cy2 += 2;
-    }
-    legG
-      .append("rect")
-      .attr("x", lx - 40)
-      .attr("y", cy2 - 8)
-      .attr("width", 11)
-      .attr("height", 11)
-      .attr("fill", color)
-      .attr("rx", 2);
-    legG
-      .append("text")
-      .attr("x", lx - 24)
-      .attr("y", cy2 + 1)
-      .attr("font-size", 9)
-      .attr("fill", "#64748b")
-      .text(name);
-    cy2 += 16;
-  });
-
-  legBg.attr("height", cy2 - (ly0 - 12));
+  legBg.attr("height", ly - (ly0 - 15));
 }

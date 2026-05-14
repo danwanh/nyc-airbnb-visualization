@@ -7,13 +7,13 @@ import {
   filterListings,
   BOROUGHS,
   ROOM_TYPES,
-  ROOM_TYPE_COLORS,
   ROOM_TYPE_STACK_ORDER,
   HEATMAP_PRICE_BINS,
   priceBinLabel,
   aggregateRatingDistributionByBorough,
   aggregateInstantBookable,
 } from "./utils/aggregates.js";
+import { ROOM_TYPE_COLORS, BOROUGH_COLORS } from "./utils/palette.js";
 import { renderResponseStack } from "./pages/responseStackChart.js";
 import { renderReviewDotPlot } from "./pages/reviewDotPlotChart.js";
 import { renderStackBarChart } from "./pages/stackBarChart.js";
@@ -303,6 +303,8 @@ function updateCharts() {
 
   renderListingBubbleMap("#chart12", neighborhoodRows, sourceFilters.borough, neighborhoodOptions);
   renderNeighborhoodBarChart("#chart13", neighborhoodRows, sourceFilters.borough, neighborhoodOptions);
+
+  buildBoroughLegend("shared-borough-legend");
 }
 
 function buildChart3Legend(types) {
@@ -316,6 +318,19 @@ function buildChart3Legend(types) {
       return `<div class="legend-item">
         <div class="legend-rect" style="background:${color}"></div>
         ${t}
+      </div>`;
+    })
+    .join("");
+}
+
+function buildBoroughLegend(selector) {
+  const el = document.getElementById(selector);
+  if (!el) return;
+  el.innerHTML = Object.entries(BOROUGH_COLORS)
+    .map(([name, color]) => {
+      return `<div class="legend-item">
+        <div class="legend-rect" style="background:${color}"></div>
+        ${name}
       </div>`;
     })
     .join("");
@@ -368,6 +383,7 @@ async function main() {
     allRows = await loadListings();
     captureManualFilters();
     updateCharts();
+    buildBoroughLegend("shared-borough-legend");
 
     filterRoomEl?.addEventListener("change", (e) => {
       _selectedRoomType = null;

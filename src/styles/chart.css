@@ -259,6 +259,11 @@ h1 {
   overflow: visible;
 }
 
+.chart-scroll .chart-svg {
+  width: auto;
+  max-width: none;
+}
+
 .chart-fill {
   flex: 1 1 auto;
   min-height: 0;
@@ -623,4 +628,46 @@ svg text {
   .map-shell {
     height: 390px;
   }
+}
+
+.chart-scroll {
+  width: 100%;
+  overflow-x: auto;
+  overflow-y: hidden;
+  -webkit-overflow-scrolling: touch;
+  padding-bottom: 8px; /* Space for scrollbar */
+}
+
+.chart-scroll::-webkit-scrollbar {
+  height: 8px;
+}
+
+.chart-scroll::-webkit-scrollbar-track {
+  background: var(--bg-soft);
+  border-radius: 4px;
+}
+
+.chart-scroll::-webkit-scrollbar-thumb {
+  background: var(--border-strong);
+  border-radius: 4px;
+}
+
+.chart-scroll::-webkit-scrollbar-thumb:hover {
+  background: var(--text-muted);
+}
+
+/* Ensure chart-svg inside scroll doesn't shrink */
+.chart-scroll .chart-svg {
+  display: block;
+  flex: 0 0 auto;
+}
+
+.legend--centered {
+  justify-content: center;
+  margin-top: 0;
+}
+
+.shared-legend-wrap {
+  padding: 12px 18px;
+  margin-top: -6px;
 }

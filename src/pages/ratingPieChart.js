@@ -1,13 +1,6 @@
 import * as d3 from "d3";
 import { chartTooltip, formatTooltip } from "../components/tooltip.js";
-import { CHROME } from "../utils/palette.js";
-
-/** Color mapping for rating groups */
-const RATING_COLORS = {
-  high: "#2563eb", // blue — "High (≥4.5)"
-  mid: "#ea580c", // orange — "Mid (4.0–4.5)"
-  low: "#dc2626", // red — "Low (<4.0)"
-};
+import { CHROME, RATING_COLORS } from "../utils/palette.js";
 
 /** Rating group labels for legend */
 const RATING_LABELS = [
@@ -179,24 +172,24 @@ export function renderRatingPie(containerSelector, data, options = {}) {
   const ITEM_W = 130; // width reserved per legend item
   const startX = -(RATING_LABELS.length * ITEM_W) / 2;
 
-  RATING_LABELS.forEach((item, i) => {
-    const x = startX + i * ITEM_W;
+  // RATING_LABELS.forEach((item, i) => {
+  //   const x = startX + i * ITEM_W;
 
-    legendG
-      .append("rect")
-      .attr("x", x)
-      .attr("y", 0)
-      .attr("width", 12)
-      .attr("height", 12)
-      .attr("rx", 2)
-      .attr("fill", RATING_COLORS[item.key]);
+  //   legendG
+  //     .append("rect")
+  //     .attr("x", x)
+  //     .attr("y", 0)
+  //     .attr("width", 12)
+  //     .attr("height", 12)
+  //     .attr("rx", 2)
+  //     .attr("fill", RATING_COLORS[item.key]);
 
-    legendG
-      .append("text")
-      .attr("x", x + 16)
-      .attr("y", 10)
-      .attr("fill", CHROME.tick)
-      .attr("font-size", 11)
-      .text(item.group);
-  });
+  //   legendG
+  //     .append("text")
+  //     .attr("x", x + 16)
+  //     .attr("y", 10)
+  //     .attr("fill", CHROME.tick)
+  //     .attr("font-size", 11)
+  //     .text(item.group);
+  // });
 }
