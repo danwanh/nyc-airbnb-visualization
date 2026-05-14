@@ -115,6 +115,9 @@ export function renderInstantBookableChart(containerSelector, aggData, options =
       const bx = xScale(borough);
       const bw = xScale.bandwidth();
 
+      // Opacity for dimming non-selected boroughs
+      const barOpacity = selectedBorough && selectedBorough !== borough ? 0.25 : 1;
+
       // Bottom segment: notInstant
       const niH = yScale(0) - yScale(cell.notInstant);
       const niY = yScale(cell.notInstant);
@@ -128,7 +131,7 @@ export function renderInstantBookableChart(containerSelector, aggData, options =
         .attr('fill', IB_COLORS.notInstant)
         .attr('rx', 2)
         .attr('cursor', 'pointer')
-        .attr('opacity', selectedBorough && selectedBorough !== borough ? 0.25 : 1)
+        .attr('opacity', barOpacity)
         .on('click', () => { if (onBoroughClick) onBoroughClick(borough); })
         .on('mouseenter', (event) => {
           const pct = cell.total > 0 ? ((cell.notInstant / cell.total) * 100).toFixed(1) : '0.0';
@@ -172,7 +175,7 @@ export function renderInstantBookableChart(containerSelector, aggData, options =
         .attr('fill', IB_COLORS.instant)
         .attr('rx', 2)
         .attr('cursor', 'pointer')
-        .attr('opacity', selectedBorough && selectedBorough !== borough ? 0.25 : 1)
+        .attr('opacity', barOpacity)
         .on('click', () => { if (onBoroughClick) onBoroughClick(borough); })
         .on('mouseenter', (event) => {
           const pct = cell.total > 0 ? ((cell.instant / cell.total) * 100).toFixed(1) : '0.0';
