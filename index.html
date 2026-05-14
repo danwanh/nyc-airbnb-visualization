@@ -139,6 +139,31 @@
     </div>
   </div>
 </div>
+
+<!-- FOURTH ROW OF CHARTS: Sheet 12 & 13 -->
+<div class="charts-grid" style="margin-top:20px;">
+  <!-- Sheet 12: Bubble Map -->
+  <div class="chart-card">
+    <div class="chart-header">
+      <div class="chart-title">Listing Density by Neighbourhood</div>
+      <div class="chart-subtitle">Bubble size = CNT(id) · Color = neighbourhood_group · Scroll-to-zoom · Double-click to reset</div>
+    </div>
+    <div class="sheet12-wrap">
+      <svg id="chart12" style="width:100%;height:480px;"></svg>
+    </div>
+    <div class="legend" id="sheet12-legend"></div>
+  </div>
+
+  <!-- Sheet 13: Bar Chart -->
+  <div class="chart-card">
+    <div class="chart-header">
+      <div class="chart-title">Median Price by Neighbourhood</div>
+      <div class="chart-subtitle">X = neighbourhood_cleansed · Y = MEDIAN(price) · Scroll horizontally for all bars</div>
+    </div>
+    <svg id="chart13" style="width:100%;height:520px;"></svg>
+  </div>
+</div>
+</div>
 </div>
 
 <script type="module" src="/src/main.js"></script>
