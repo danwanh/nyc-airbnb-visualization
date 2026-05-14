@@ -392,6 +392,47 @@ function updateChart6() {
   });
 }
 
+/** Borough click helper — shared by Chart 5, 6 */
+function boroughClickHandler(borough) {
+  if (!filterBoroughEl) return;
+  const allCb = filterBoroughEl.querySelector('input[value="all"]');
+  const otherCbs = filterBoroughEl.querySelectorAll('input:not([value="all"])');
+  const currentChecked = Array.from(otherCbs).filter(c => c.checked).map(c => c.value);
+
+  if (currentChecked.length === 1 && currentChecked[0] === borough) {
+    otherCbs.forEach(cb => cb.checked = true);
+    if (allCb) allCb.checked = true;
+  } else {
+    otherCbs.forEach(cb => cb.checked = (cb.value === borough));
+    if (allCb) allCb.checked = false;
+  }
+  updateCharts();
+}
+
+/** Chart 5 uses global room filter (all boroughs always shown). */
+function updateChart5() {
+  if (!allRows) return;
+  const f = getFilters();
+  const rows = filterListings(allRows, { roomType: f.roomType, borough: "all" });
+  const pieData = aggregateRatingDistributionByBorough(rows);
+  renderRatingPie("#chart5", pieData, {
+    selectedBorough: (f.borough.length === 1) ? f.borough[0] : null,
+    onBoroughClick: boroughClickHandler,
+  });
+}
+
+/** Chart 6 uses global room filter. */
+function updateChart6() {
+  if (!allRows) return;
+  const f = getFilters();
+  const rows = filterListings(allRows, { roomType: f.roomType, borough: "all" });
+  const ibData = aggregateInstantBookable(rows);
+  renderInstantBookableChart("#chart6", ibData, {
+    selectedBorough: (f.borough.length === 1) ? f.borough[0] : null,
+    onBoroughClick: boroughClickHandler,
+  });
+}
+
 async function main() {
   setStatus("Loading listings.csv…");
   fillFilterSelects();
@@ -440,6 +481,7 @@ async function main() {
       updateCharts();
     });
 
+<<<<<<< HEAD
 
     // ── Chart 5 & 6 local filters ──
     document
@@ -451,6 +493,8 @@ async function main() {
 
     updateChart6();
 
+=======
+>>>>>>> 269a40958310545b14bea23f34aa144ff9200233
   } catch (e) {
     console.error(e);
     setStatus("Could not load CSV. Ensure server is running.", true);
