@@ -9,10 +9,14 @@ import { CHROME } from '../utils/palette.js';
  *
  * @param {string} containerSelector  – CSS selector of an <svg> element
  * @param {{ hoods: string[], types: string[], pct: object, total: number }} data
- * @param {{ selectedBorough?: string|null }} [options]
+ * @param {{
+ *   selectedBorough?: string|null,
+ *   selectedSegment?: { hood: string, roomType: string }|null,
+ *   onSegmentClick?: (hood: string, roomType: string) => void
+ * }} [options]
  */
 export function renderStackBarChart(containerSelector, data, options = {}) {
-  const { selectedBorough = null } = options;
+  const { selectedBorough = null, selectedSegment = null, onSegmentClick } = options;
   const { hoods, types, pct } = data;
 
   const svg = d3.select(containerSelector);
@@ -37,7 +41,6 @@ export function renderStackBarChart(containerSelector, data, options = {}) {
   /* ── Dimensions ── */
   const margin = { top: 24, right: 16, bottom: 48, left: 46 };
   const W = 520;
-  // auto-height: give each borough 64px of bar space
   const innerH = hoods.length * 64;
   const H = innerH + margin.top + margin.bottom;
   const iW = W - margin.left - margin.right;
@@ -51,9 +54,7 @@ export function renderStackBarChart(containerSelector, data, options = {}) {
   const g = svg.append('g').attr('transform', `translate(${margin.left},${margin.top})`);
 
   /* ── Scales ── */
-  // Y-axis max is always 100 since data is normalized per borough
   const yMax = 100;
-
   const x = d3.scaleBand().domain(hoods).range([0, iW]).padding(0.38);
   const y = d3.scaleLinear().domain([0, yMax]).range([innerH, 0]).nice();
 
@@ -79,6 +80,13 @@ export function renderStackBarChart(containerSelector, data, options = {}) {
     .call((a) => a.select('.domain').remove())
     .call((a) => a.selectAll('line').attr('stroke', CHROME.grid).attr('stroke-dasharray', '3,3'));
 
+  /* ── Helper: is this segment the selected one? ── */
+  const isSelected = (hood, roomType) =>
+    selectedSegment && selectedSegment.hood === hood && selectedSegment.roomType === roomType;
+  const hasSelection = selectedSegment !== null;
+  // Also dim based on borough if no segment selected
+  const hasBoroughSel = selectedBorough !== null;
+
   /* ── Bars + labels ── */
   stacked.forEach((layer) => {
     const roomType = layer.key;
@@ -88,6 +96,7 @@ export function renderStackBarChart(containerSelector, data, options = {}) {
     g.selectAll(null)
       .data(layer)
       .join('rect')
+      .attr('class', 'stack-bar-rect')
       .attr('x', (d) => x(d.data.hood))
       .attr('y', (d) => y(Math.min(d[1], yMax)))
       .attr('height', (d) => {
@@ -97,22 +106,53 @@ export function renderStackBarChart(containerSelector, data, options = {}) {
       })
       .attr('width', x.bandwidth())
       .attr('fill', color)
-      .attr('opacity', selectedBorough ? (d) => d.data.hood === selectedBorough ? 1 : 0.28 : 1)
-      .on('mouseenter', (event, d) => {
+      .attr('opacity', (d) => {
+        if (hasSelection) {
+          return isSelected(d.data.hood, roomType) ? 1 : 0.18;
+        }
+        if (hasBoroughSel) return d.data.hood === selectedBorough ? 1 : 0.28;
+        return 1;
+      })
+      .attr('stroke', (d) => isSelected(d.data.hood, roomType) ? '#0f172a' : 'none')
+      .attr('stroke-width', (d) => isSelected(d.data.hood, roomType) ? 2 : 0)
+      .attr('rx', (d) => isSelected(d.data.hood, roomType) ? 2 : 0)
+      .style('cursor', 'pointer')
+      .on('mouseenter', function(event, d) {
         const nb = d.data.hood;
         const val = (d[1] - d[0]).toFixed(1);
+        // Hover highlight
+        if (!isSelected(nb, roomType)) {
+          d3.select(this).attr('opacity', 0.9).attr('stroke', '#64748b').attr('stroke-width', 1.5);
+        }
         chartTooltip.show(
           `<div style="display:grid; grid-template-columns: auto auto; gap: 4px 16px; text-align: left;">
             <span style="color:#6b6b67">Room Type:</span> <strong style="color:${color}">${roomType}</strong>
             <span style="color:#6b6b67">Borough:</span> <strong>${nb}</strong>
             <span style="color:#6b6b67">Share:</span> <strong>${val}%</strong>
+            <span style="color:#6b6b67;font-size:10px;grid-column:1/-1;margin-top:4px;opacity:0.7">Click to filter all charts</span>
           </div>`,
           event.clientX,
           event.clientY
         );
       })
       .on('mousemove', (event) => chartTooltip.move(event.clientX, event.clientY))
-      .on('mouseleave', () => chartTooltip.hide());
+      .on('mouseleave', function(event, d) {
+        const nb = d.data.hood;
+        // Restore original opacity
+        d3.select(this)
+          .attr('opacity', () => {
+            if (hasSelection) return isSelected(nb, roomType) ? 1 : 0.18;
+            if (hasBoroughSel) return nb === selectedBorough ? 1 : 0.28;
+            return 1;
+          })
+          .attr('stroke', isSelected(nb, roomType) ? '#0f172a' : 'none')
+          .attr('stroke-width', isSelected(nb, roomType) ? 2 : 0);
+        chartTooltip.hide();
+      })
+      .on('click', function(event, d) {
+        event.stopPropagation();
+        onSegmentClick?.(d.data.hood, roomType);
+      });
 
     // ── % labels inside segments (skip if segment too narrow)
     g.selectAll(null)
@@ -130,7 +170,11 @@ export function renderStackBarChart(containerSelector, data, options = {}) {
       .attr('font-size', 11)
       .attr('font-weight', 600)
       .attr('pointer-events', 'none')
-      .attr('opacity', selectedBorough ? (d) => d.data.hood === selectedBorough ? 1 : 0.28 : 1)
+      .attr('opacity', (d) => {
+        if (hasSelection) return isSelected(d.data.hood, roomType) ? 1 : 0.18;
+        if (hasBoroughSel) return d.data.hood === selectedBorough ? 1 : 0.28;
+        return 1;
+      })
       .text((d) => {
         const val = d[1] - d[0];
         const segH = y(Math.min(d[0], yMax)) - y(Math.min(d[1], yMax));
@@ -145,8 +189,16 @@ export function renderStackBarChart(containerSelector, data, options = {}) {
     .call((a) => a.select('.domain').remove())
     .call((a) => a.selectAll('text')
       .attr('dy', '1.2em')
-      .attr('fill', (b) => selectedBorough && b === selectedBorough ? '#0f172a' : CHROME.tick)
-      .attr('font-weight', (b) => selectedBorough && b === selectedBorough ? 600 : 400)
+      .attr('fill', (b) => {
+        if (hasSelection && selectedSegment.hood === b) return '#0f172a';
+        if (hasBoroughSel && b === selectedBorough) return '#0f172a';
+        return CHROME.tick;
+      })
+      .attr('font-weight', (b) => {
+        if (hasSelection && selectedSegment.hood === b) return 700;
+        if (hasBoroughSel && b === selectedBorough) return 600;
+        return 400;
+      })
       .attr('font-size', 12)
     );
 
@@ -163,4 +215,7 @@ export function renderStackBarChart(containerSelector, data, options = {}) {
       .attr('fill', CHROME.tick)
       .attr('font-size', 11)
     );
+
+  /* ── Click backdrop to deselect ── */
+  svg.on('click', () => onSegmentClick?.(null, null));
 }
