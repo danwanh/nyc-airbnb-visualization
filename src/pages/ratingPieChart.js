@@ -4,16 +4,16 @@ import { CHROME } from '../utils/palette.js';
 
 /** Color mapping for rating groups */
 const RATING_COLORS = {
-  high: '#2563eb',  // blue — "Cao (≥4.5)"
-  mid:  '#ea580c',  // orange — "Trung (4.0–4.5)"
-  low:  '#dc2626',  // red — "Thấp (<4.0)"
+  high: '#2563eb',  // blue — "High (≥4.5)"
+  mid:  '#ea580c',  // orange — "Mid (4.0–4.5)"
+  low:  '#dc2626',  // red — "Low (<4.0)"
 };
 
 /** Rating group labels for legend */
 const RATING_LABELS = [
-  { key: 'high', group: 'Cao (≥4.5)' },
-  { key: 'mid',  group: 'Trung (4.0–4.5)' },
-  { key: 'low',  group: 'Thấp (<4.0)' },
+  { key: 'high', group: 'High (≥4.5)' },
+  { key: 'mid',  group: 'Mid (4.0–4.5)' },
+  { key: 'low',  group: 'Low (<4.0)' },
 ];
 
 /** Ordered list of NYC boroughs */
@@ -109,9 +109,9 @@ export function renderRatingPie(containerSelector, data, options = {}) {
         const pct = ((d.data.count / total) * 100).toFixed(1);
         chartTooltip.show(
           `<span style="color:#6b6b67">${borough}</span><br/>` +
-          `<span style="color:#6b6b67">Nhóm:</span> <strong>${d.data.group}</strong><br/>` +
-          `<span style="color:#6b6b67">Số listing:</span> <strong>${d3.format(',')(d.data.count)}</strong><br/>` +
-          `<span style="color:#6b6b67">Tỉ lệ:</span> <strong>${pct}%</strong>`,
+          `<span style="color:#6b6b67">Group:</span> <strong>${d.data.group}</strong><br/>` +
+          `<span style="color:#6b6b67">Listings:</span> <strong>${d3.format(',')(d.data.count)}</strong><br/>` +
+          `<span style="color:#6b6b67">Share:</span> <strong>${pct}%</strong>`,
           event.clientX,
           event.clientY,
         );

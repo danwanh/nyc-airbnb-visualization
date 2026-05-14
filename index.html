@@ -112,30 +112,50 @@
 <!-- THIRD ROW OF CHARTS (Duyên) -->
 <div class="charts-grid" style="margin-top:20px;">
   <!-- CHART 5: Rating Pie Chart -->
-  <div class="chart-card">
-    <div class="chart-header">
-      <div class="chart-title">Cơ cấu Rating Listing tại NYC</div>
-      <div class="chart-subtitle">Tỉ lệ % listing theo nhóm điểm đánh giá · Filtered by global dropdowns</div>
+  <div class="chart-card" style="grid-column: 1 / -1;">
+    <div class="chart-header" style="display:flex; justify-content:space-between; align-items:flex-start;">
+      <div>
+        <div class="chart-title">Rating Distribution by Borough</div>
+        <div class="chart-subtitle">% of listings per rating group · One pie per borough</div>
+      </div>
+      <div class="heatmap-controls" style="display:flex; gap:12px; align-items:center; margin-top:-4px;">
+        <label class="filter-field" style="margin-bottom:0;">
+          <span class="filter-label">Room type</span>
+          <select id="filter-chart5-room" class="filter-select" aria-label="Filter chart 5 by room type">
+            <option value="all">All room types</option>
+          </select>
+        </label>
+      </div>
     </div>
 
-    <svg id="chart5" aria-label="Pie chart: rating distribution"></svg>
+    <svg id="chart5" aria-label="Pie chart: rating distribution by borough"></svg>
     <div class="legend" id="chart5-legend">
-      <div class="legend-item"><div class="legend-rect" style="background:#2563eb"></div> Cao (≥4.5)</div>
-      <div class="legend-item"><div class="legend-rect" style="background:#ea580c"></div> Trung (4.0–4.5)</div>
-      <div class="legend-item"><div class="legend-rect" style="background:#dc2626"></div> Thấp (&lt;4.0)</div>
+      <div class="legend-item"><div class="legend-rect" style="background:#2563eb"></div> High (≥4.5)</div>
+      <div class="legend-item"><div class="legend-rect" style="background:#ea580c"></div> Mid (4.0–4.5)</div>
+      <div class="legend-item"><div class="legend-rect" style="background:#dc2626"></div> Low (&lt;4.0)</div>
     </div>
   </div>
 
   <!-- CHART 6: Instant Bookable Stacked Bar (full width) -->
   <div class="chart-card" style="grid-column: 1 / -1;">
-    <div class="chart-header">
-      <div class="chart-title">Số lượng Listing theo Quận, Loại phòng & Instant Bookable</div>
-      <div class="chart-subtitle">COUNT(Id) · Phân tách theo Room Type · Màu thể hiện tỉ lệ Đặt ngay vs Phải duyệt đơn</div>
+    <div class="chart-header" style="display:flex; justify-content:space-between; align-items:flex-start;">
+      <div>
+        <div class="chart-title">Listing Count by Borough, Room Type &amp; Instant Bookable</div>
+        <div class="chart-subtitle">COUNT(id) · Faceted by Room Type · Color = Instant Bookable vs Requires Approval</div>
+      </div>
+      <div class="heatmap-controls" style="display:flex; gap:12px; align-items:center; margin-top:-4px;">
+        <label class="filter-field" style="margin-bottom:0;">
+          <span class="filter-label">Room type</span>
+          <select id="filter-chart6-room" class="filter-select" aria-label="Filter chart 6 by room type">
+            <option value="all">All room types</option>
+          </select>
+        </label>
+      </div>
     </div>
     <svg id="chart6" aria-label="Stacked bar: listing count by borough, room type and instant bookable"></svg>
     <div class="legend">
-      <div class="legend-item"><div class="legend-rect" style="background:#059669"></div> Đặt ngay (Instant Bookable)</div>
-      <div class="legend-item"><div class="legend-rect" style="background:#94a3b8"></div> Phải duyệt đơn</div>
+      <div class="legend-item"><div class="legend-rect" style="background:#059669"></div> Instant Bookable</div>
+      <div class="legend-item"><div class="legend-rect" style="background:#94a3b8"></div> Requires Approval</div>
     </div>
   </div>
 </div>
