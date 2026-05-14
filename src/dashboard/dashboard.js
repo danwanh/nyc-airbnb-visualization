@@ -1,5 +1,5 @@
-import { drawBarChart } from "../components/barChart";
-import { drawPieChart } from "../components/pieChart";
+import { drawBarChart } from "../pages/barChart";
+import { drawPieChart } from "../pages/pieChart";
 
 export function initDashboard(data) {
   drawBarChart("#bar-chart", data);
