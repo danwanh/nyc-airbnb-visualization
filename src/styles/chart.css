@@ -66,7 +66,6 @@ h1 {
   border: 1px solid var(--border-card);
   border-radius: 14px;
   padding: 22px 20px 24px;
-  overflow-x: auto;
   box-shadow: var(--shadow);
   transition: border-color 0.2s ease, box-shadow 0.2s ease;
   min-width: 0;
@@ -372,3 +371,35 @@ svg text {
   flex: 1;
 }
 
+/* Custom Scrollbar for Bar Chart */
+.s13-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: #cbd5e1 #f1f5f9;
+}
+.s13-scroll::-webkit-scrollbar {
+  height: 8px;
+}
+.s13-scroll::-webkit-scrollbar-track {
+  background: #f1f5f9;
+  border-radius: 4px;
+}
+.s13-scroll::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 4px;
+}
+.s13-scroll::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+
+/* Ensure horizontal scrollbar is visible in chart-card if needed */
+.chart-card::-webkit-scrollbar {
+  height: 6px;
+  width: 6px;
+}
+.chart-card::-webkit-scrollbar-track {
+  background: transparent;
+}
+.chart-card::-webkit-scrollbar-thumb {
+  background: #e2e8f0;
+  border-radius: 10px;
+}

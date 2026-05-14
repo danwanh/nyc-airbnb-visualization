@@ -24,7 +24,7 @@ function median(arr) {
   return s.length % 2 === 0 ? (s[m - 1] + s[m]) / 2 : s[m];
 }
 
-/** Aggregate rows → [{ neighbourhood, borough, medianPrice }] sorted A–Z */
+//** Aggregate rows → [{ neighbourhood, borough, medianPrice, count }] sorted A–Z */
 function aggregateMedianPrice(rows, boroughFilter = "all") {
   const filtered =
     boroughFilter === "all"
@@ -41,8 +41,11 @@ function aggregateMedianPrice(rows, boroughFilter = "all") {
         neighbourhood: key,
         borough: r.neighbourhood_group_cleansed,
         prices: [],
+        count: 0,
       });
-    map.get(key).prices.push(price);
+    const entry = map.get(key);
+    entry.prices.push(price);
+    entry.count++;
   }
 
   return Array.from(map.values())
@@ -50,6 +53,7 @@ function aggregateMedianPrice(rows, boroughFilter = "all") {
       neighbourhood: e.neighbourhood,
       borough: e.borough,
       medianPrice: median(e.prices),
+      count: e.count,
     }))
     .sort((a, b) => a.neighbourhood.localeCompare(b.neighbourhood));
 }
@@ -65,28 +69,35 @@ export function renderNeighborhoodBarChart(
   const svgEl = d3.select(selector).node();
   if (!svgEl) return;
 
-  // Use a scrollable wrapper inside the card
-  let wrapper = svgEl.parentElement.querySelector(".s13-scroll");
+  // Ensure scrollable wrapper exists and svg is inside it
+  let wrapper = svgEl.closest(".s13-scroll");
   if (!wrapper) {
     wrapper = document.createElement("div");
     wrapper.className = "s13-scroll";
-    wrapper.style.cssText = "overflow-x:auto;overflow-y:hidden;width:100%;";
-    svgEl.parentElement.appendChild(wrapper);
-    svgEl.remove();
+    // Ensure the wrapper is a child of the chart card
+    const parent = svgEl.parentElement;
+    parent.insertBefore(wrapper, svgEl);
     wrapper.appendChild(svgEl);
   }
+  
+  // Style the wrapper to ensure scrollbar visibility
+  wrapper.style.cssText = "overflow-x:auto; overflow-y:hidden; width:100%; position:relative; display:block; padding-bottom:15px;";
 
   // Dimensions
-  const H = 380;
-  const margin = { top: 24, right: 20, bottom: 120, left: 70 };
+  const H = 450; // Height
+  const margin = { top: 30, right: 30, bottom: 140, left: 70 };
   const iH = H - margin.top - margin.bottom;
 
-  const BAR_W = 28; // min px per bar
-  const contW = wrapper.clientWidth || 700;
-  const iW = Math.max(contW - margin.left - margin.right, data.length * BAR_W);
+  const BAR_W = 45; // Width per bar
+  const parentWidth = wrapper.getBoundingClientRect().width || 700;
+  const iW = Math.max(parentWidth - margin.left - margin.right, data.length * BAR_W);
   const W = iW + margin.left + margin.right;
 
-  const svg = d3.select(svgEl).attr("width", W).attr("height", H);
+  const svg = d3.select(svgEl)
+    .attr("width", W)
+    .attr("height", H)
+    .style("width", null)
+    .style("height", null);
 
   svg.selectAll("*").remove();
   svg.append("rect").attr("width", W).attr("height", H).attr("fill", "transparent");
@@ -101,7 +112,7 @@ export function renderNeighborhoodBarChart(
     .scaleBand()
     .domain(data.map((d) => d.neighbourhood))
     .range([0, iW])
-    .padding(0.15);
+    .padding(0.2);
 
   const maxP = d3.max(data, (d) => d.medianPrice) || 100;
   const y = d3
@@ -130,12 +141,13 @@ export function renderNeighborhoodBarChart(
     .call(d3.axisBottom(x).tickSize(0));
   xG.select(".domain").remove();
   xG.selectAll("text")
-    .attr("transform", "rotate(-55)")
+    .attr("transform", "rotate(-65)")
     .attr("text-anchor", "end")
     .attr("dx", "-0.3em")
-    .attr("dy", "0em")
+    .attr("dy", "0.2em")
     .attr("fill", "#475569")
-    .attr("font-size", data.length > 60 ? 6.5 : 8.5);
+    .attr("font-size", 10)
+    .text((d) => d);
 
   // Y axis
   const yG = chartGroup.append("g").call(d3.axisLeft(y).ticks(5).tickSize(-iW));
@@ -153,16 +165,6 @@ export function renderNeighborhoodBarChart(
     .attr("fill", "#64748b")
     .attr("font-size", 11)
     .text("Median price");
-
-  // X label
-  chartGroup
-    .append("text")
-    .attr("x", iW / 2)
-    .attr("y", iH + margin.bottom - 4)
-    .attr("text-anchor", "middle")
-    .attr("fill", "#64748b")
-    .attr("font-size", 11)
-    .text("Neighbourhood");
 
   // Bars
   chartGroup
@@ -194,7 +196,7 @@ export function renderNeighborhoodBarChart(
         <div style="font-weight:600; margin-bottom:4px;">${d.neighbourhood}</div>
         <div style="font-size:11px; color:#64748b; margin-bottom:4px;">${d.borough}</div>
         <div style="font-size:13px; font-weight:600; color:#0f172a;">$${Math.round(d.medianPrice).toLocaleString()}</div>
-        <div style="font-size:10px; color:#94a3b8; margin-top:4px;">Median Price</div>
+        <div style="font-size:10px; color:#94a3b8; margin-top:2px;">Median Price</div>
       `;
       chartTooltip.show(html, event.clientX, event.clientY);
     })

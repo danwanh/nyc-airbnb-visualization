@@ -189,13 +189,15 @@ export async function renderListingBubbleMap(
     .join("text")
     .attr("class", "bubble-lbl")
     .attr("x", (d) => projection([d.lng, d.lat])[0])
-    .attr("y", (d) => projection([d.lng, d.lat])[1] + baseRScale(d.count) + 16)
+    .attr("y", (d) => projection([d.lng, d.lat])[1] + baseRScale(d.count) + 8)
     .attr("text-anchor", "middle")
-    .attr("fill", "#475569")
-    .attr("font-size", 6)
-    .attr("opacity", 0)
+    .attr("dominant-baseline", "hanging")
+    .attr("fill", "#1e293b")
+    .attr("font-size", (d, i) => i < 5 ? 7 : 6)
+    .attr("font-weight", (d, i) => i < 5 ? 700 : 400)
+    .attr("opacity", (d, i) => i < 5 ? 0.9 : 0)
     .attr("pointer-events", "none")
-    .text((d) => d.neighbourhood);
+    .text((d) => `${d.neighbourhood} (${d.count.toLocaleString()})`);
 
   // Zoom handler
   const zoom = d3
@@ -205,23 +207,20 @@ export async function renderListingBubbleMap(
       contentGroup.attr("transform", ev.transform);
       const scale = Math.max(ev.transform.k, 0.8);
       const radiusCorrection = 1 / scale;
-      bubbles.attr("r", (d) => baseRScale(d.count) * radiusCorrection);
-      labels.attr(
-        "y",
-        (d) =>
-          projection([d.lng, d.lat])[1] +
-          baseRScale(d.count) * radiusCorrection +
-          16,
-      );
+      
+      bubbles.attr("r", (d) => baseRScale(d.count) * radiusCorrection)
+             .attr("stroke-width", (d) => (d.neighbourhood === selectedNeighborhood ? 1.5 : 0.6) * radiusCorrection);
 
-      const minZoomForLabels = 2.2;
-      if (scale < minZoomForLabels) {
-        labels.attr("opacity", 0);
-      } else {
-        labels
-          .attr("opacity", 1)
-          .attr("font-size", Math.max(2, Math.min(4, 7 / scale)));
-      }
+      // Update label positions (below bubble) and visibility
+      labels.attr("x", (d) => projection([d.lng, d.lat])[0])
+            .attr("y", (d) => projection([d.lng, d.lat])[1] + baseRScale(d.count) * radiusCorrection + (12 / scale))
+            .attr("font-size", (d, i) => Math.max(2, Math.min(8, (i < 5 ? 9 : 7) / scale)));
+
+      const minZoomForLabels = 2.0;
+      labels.attr("opacity", (d, i) => {
+        if (scale >= minZoomForLabels) return 1;
+        return i < 5 ? 0.9 : 0;
+      });
     });
 
   svg

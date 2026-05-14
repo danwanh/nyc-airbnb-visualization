@@ -81,9 +81,7 @@ function rowsForChart1(f) {
     roomType: f.roomType,
     borough: "all",
     excludeZero: f.excludeZero,
-    // Note: chart 1 usually doesn't filter by neighborhood to keep context, 
-    // but here we might want to if specified.
-    neighborhood: "all", 
+    neighborhood: f.neighborhood, 
   });
 }
 
