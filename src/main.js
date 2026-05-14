@@ -256,42 +256,42 @@ function updateChart4() {
 }
 
 /** Chart 5 uses its own local Room Type select (all boroughs always shown). */
-function updateChart5() {
-  if (!allRows) return;
-  const localRoom = document.getElementById("filter-chart5-room")?.value ?? "all";
-  const rows = filterListings(allRows, { roomType: localRoom, borough: "all" });
-  const pieData = aggregateRatingDistributionByBorough(rows);
-  const f = getFilters();
-  renderRatingPie("#chart5", pieData, {
-    selectedBorough: f.borough === "all" ? null : f.borough,
-    onBoroughClick: (borough) => {
-      if (!filterBoroughEl) return;
-      const next = filterBoroughEl.value === borough ? "all" : borough;
-      filterBoroughEl.value = next;
-      updateCharts();
-    },
-  });
-}
+// function updateChart5() {
+//   if (!allRows) return;
+//   const localRoom = document.getElementById("filter-chart5-room")?.value ?? "all";
+//   const rows = filterListings(allRows, { roomType: localRoom, borough: "all" });
+//   const pieData = aggregateRatingDistributionByBorough(rows);
+//   const f = getFilters();
+//   renderRatingPie("#chart5", pieData, {
+//     selectedBorough: f.borough === "all" ? null : f.borough,
+//     onBoroughClick: (borough) => {
+//       if (!filterBoroughEl) return;
+//       const next = filterBoroughEl.value === borough ? "all" : borough;
+//       filterBoroughEl.value = next;
+//       updateCharts();
+//     },
+//   });
+// }
 
-/** Chart 6 uses its own local Room Type select (static, no global filter). */
-function updateChart6() {
-  if (!allRows) return;
-  const localRoom = document.getElementById("filter-chart6-room")?.value ?? "all";
-  const rows = localRoom === "all"
-    ? allRows
-    : allRows.filter((r) => r.room_type === localRoom);
-  const ibData = aggregateInstantBookable(rows);
-  const f = getFilters();
-  renderInstantBookableChart("#chart6", ibData, {
-    selectedBorough: f.borough === "all" ? null : f.borough,
-    onBoroughClick: (borough) => {
-      if (!filterBoroughEl) return;
-      const next = filterBoroughEl.value === borough ? "all" : borough;
-      filterBoroughEl.value = next;
-      updateCharts();
-    },
-  });
-}
+// /** Chart 6 uses its own local Room Type select (static, no global filter). */
+// function updateChart6() {
+//   if (!allRows) return;
+//   const localRoom = document.getElementById("filter-chart6-room")?.value ?? "all";
+//   const rows = localRoom === "all"
+//     ? allRows
+//     : allRows.filter((r) => r.room_type === localRoom);
+//   const ibData = aggregateInstantBookable(rows);
+//   const f = getFilters();
+//   renderInstantBookableChart("#chart6", ibData, {
+//     selectedBorough: f.borough === "all" ? null : f.borough,
+//     onBoroughClick: (borough) => {
+//       if (!filterBoroughEl) return;
+//       const next = filterBoroughEl.value === borough ? "all" : borough;
+//       filterBoroughEl.value = next;
+//       updateCharts();
+//     },
+//   });
+// }
 
 /** Borough click helper — shared by Chart 5, 6 */
 function boroughClickHandler(borough) {
@@ -371,20 +371,6 @@ async function main() {
       updateCharts();
     });
 
-<<<<<<< HEAD
-
-    // ── Chart 5 & 6 local filters ──
-    document
-      .getElementById("filter-chart5-room")
-      ?.addEventListener("change", updateChart5);
-    document
-      .getElementById("filter-chart6-room")
-      ?.addEventListener("change", updateChart6);
-
-    updateChart6();
-
-=======
->>>>>>> 269a40958310545b14bea23f34aa144ff9200233
   } catch (e) {
     console.error(e);
     setStatus("Could not load CSV. Ensure server is running.", true);
