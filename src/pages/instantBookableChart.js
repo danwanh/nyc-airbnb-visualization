@@ -238,8 +238,10 @@ export function renderInstantBookableChart(
               rows: [
                 { label: "Room type", value: rt },
                 { label: "Status", value: IB_LABELS.instant },
-                { label: "Listings", value: d3.format(",")(cell.instant) },
-                { label: "Share", value: `${pct}%` },
+                {
+                  label: "Number of listings",
+                  value: d3.format(",")(cell.instant),
+                },
               ],
             }),
             event.clientX,

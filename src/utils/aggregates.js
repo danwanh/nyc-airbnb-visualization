@@ -161,13 +161,20 @@ export const HEATMAP_ACC_GROUPS = [
   '1 guest', '2 guests', '3-4 guests', '5-6 guests', '7+ guests',
 ];
 
-export const HEATMAP_PRICE_GROUPS = [
-  { label: '$0-$200', min: 0, max: 200 },
-  { label: '$200-$400', min: 200, max: 400 },
-  { label: '$400-$600', min: 400, max: 600 },
-  { label: '$600-$1,000', min: 600, max: 1000 },
-  { label: '$1,000+', min: 1000, max: Infinity },
+export const HEATMAP_PRICE_BIN_DEFS = [
+  { bin: 0, min: 0, max: 50, label: '$0-$50' },
+  { bin: 50, min: 50, max: 100, label: '$50-$100' },
+  { bin: 100, min: 100, max: 150, label: '$100-$150' },
+  { bin: 150, min: 150, max: 200, label: '$150-$200' },
+  { bin: 200, min: 200, max: 300, label: '$200-$300' },
+  { bin: 300, min: 300, max: 400, label: '$300-$400' },
+  { bin: 400, min: 400, max: 500, label: '$400-$500' },
+  { bin: 500, min: 500, max: 750, label: '$500-$750' },
+  { bin: 750, min: 750, max: 1000, label: '$750-$1,000' },
+  { bin: 1000, min: 1000, max: Infinity, label: '$1,000+' },
 ];
+
+export const HEATMAP_PRICE_GROUPS = HEATMAP_PRICE_BIN_DEFS;
 
 function _accGroupOf(n) {
   if (n <= 1) return '1 guest';
@@ -184,20 +191,27 @@ function _accGroupOf(n) {
  *   $500 – $1000 → step $250  → 2 bins
  *   $1000+       → 1 overflow bin
  * Total: 10 bins
+ *
+ * Boundary values are counted in the lower labelled bin:
+ * $50 belongs to $0-$50, $100 belongs to $50-$100, etc.
+ * $1,000 and above belongs to $1,000+.
  */
-export const HEATMAP_PRICE_BINS = [0, 50, 100, 150, 200, 300, 400, 500, 750, 1000];
+export const HEATMAP_PRICE_BINS = HEATMAP_PRICE_BIN_DEFS.map((d) => d.bin);
 
 export function priceBinLabel(bin) {
-  const next = { 0: 50, 50: 100, 100: 150, 150: 200, 200: 300, 300: 400, 400: 500, 500: 750, 750: 1000 };
-  if (bin === 1000) return '$1,000+';
-  return `$${bin}-$${next[bin]}`;
+  return HEATMAP_PRICE_BIN_DEFS.find((d) => d.bin === bin)?.label ?? String(bin);
 }
 
 function _priceBinOf(price) {
-  if (price < 200) return Math.floor(price / 50) * 50;
-  if (price < 500) return Math.floor(price / 100) * 100;
-  if (price < 1000) return Math.floor(price / 250) * 250;
-  return 1000;
+  if (price >= 1000) return 1000;
+
+  for (let i = 0; i < HEATMAP_PRICE_BIN_DEFS.length - 1; i++) {
+    const d = HEATMAP_PRICE_BIN_DEFS[i];
+    const lowerOk = i === 0 ? price >= d.min : price > d.min;
+    if (lowerOk && price <= d.max) return d.bin;
+  }
+
+  return null;
 }
 
 function _parsePrice(v) {
@@ -206,46 +220,50 @@ function _parsePrice(v) {
 
 /** Returns { counts, maxCount, total }
  *  counts[room][accGroup][priceBin] = number of listings
- *  priceBin uses variable-width bins (Option B).
+ *  Pipeline: room_type -> accommodates_group -> price_bin -> listing id count.
  */
 export function aggregateHeatmap(rows) {
   const counts = {};
-  for (const r of HEATMAP_ROOMS) {
-    counts[r] = {};
-    for (const a of HEATMAP_ACC_GROUPS) counts[r][a] = {};
-  }
-
+  const prepared = [];
   let total = 0;
   let maxCount = 0;
 
-  for (const row of rows) {
+  rows.forEach((row, index) => {
     const rt = (row.room_type ?? '').trim();
-    if (!HEATMAP_ROOMS.includes(rt)) continue;
+    if (!HEATMAP_ROOMS.includes(rt)) return;
 
     const acc = parseInt(row.accommodates ?? 0, 10);
-    if (!acc) continue;
+    if (!acc) return;
 
     const price = _parsePrice(row.price);
-    if (!Number.isFinite(price) || price < 0) continue;
+    if (!Number.isFinite(price) || price < 0) return;
 
     const ag = _accGroupOf(acc);
     const bin = _priceBinOf(price);
-    const id = String(row.id ?? `${rt}|${ag}|${bin}|${total}`);
+    if (bin == null) return;
 
-    if (!counts[rt][ag][bin]) counts[rt][ag][bin] = new Set();
-    const cellIds = counts[rt][ag][bin];
-    const prev = cellIds.size;
-    cellIds.add(id);
-    if (cellIds.size === prev) continue;
-    if (cellIds.size > maxCount) maxCount = cellIds.size;
-    total++;
-  }
+    prepared.push({
+      id: String(row.id ?? `row-${index}`),
+      roomType: rt,
+      accGroup: ag,
+      priceBin: bin,
+    });
+  });
 
   for (const r of HEATMAP_ROOMS) {
+    counts[r] = {};
+    const roomRows = prepared.filter((d) => d.roomType === r);
+
     for (const a of HEATMAP_ACC_GROUPS) {
+      counts[r][a] = {};
+      const accRows = roomRows.filter((d) => d.accGroup === a);
+
       for (const bin of HEATMAP_PRICE_BINS) {
-        const cell = counts[r][a][bin];
-        counts[r][a][bin] = cell instanceof Set ? cell.size : 0;
+        const cellCount = accRows.filter((d) => d.priceBin === bin).length;
+
+        counts[r][a][bin] = cellCount;
+        total += cellCount;
+        if (cellCount > maxCount) maxCount = cellCount;
       }
     }
   }

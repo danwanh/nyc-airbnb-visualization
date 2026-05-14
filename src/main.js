@@ -31,6 +31,8 @@ let _selectedNeighborhood = null;
 let _selectedHeatmapCell = null;
 let _manualRoomFilter = null;
 let _manualBoroughFilter = null;
+let _manualAccFilter = null;
+let _manualPriceBinFilter = null;
 
 const filterRoomEl = document.getElementById("filter-room");
 const filterBoroughEl = document.getElementById("filter-borough");
@@ -107,7 +109,7 @@ function setCheckboxGroup(containerEl, selectedValues = "all") {
       : Array.isArray(selectedValues)
         ? selectedValues
         : [selectedValues];
-  const nextSet = new Set(nextValues);
+  const nextSet = new Set(nextValues.map(String));
 
   otherCbs.forEach((cb) => {
     cb.checked = nextSet.has(cb.value);
@@ -123,6 +125,11 @@ function captureManualFilters() {
   _manualBoroughFilter = checkedValues(filterBoroughEl);
 }
 
+function captureManualHeatmapFilters() {
+  _manualAccFilter = checkedValues(document.getElementById("filter-acc"));
+  _manualPriceBinFilter = checkedValues(document.getElementById("filter-price-bin"));
+}
+
 function getSourceFilters(currentFilters = getFilters()) {
   return {
     roomType: _manualRoomFilter ?? currentFilters.roomType,
@@ -136,6 +143,17 @@ function syncGlobalFiltersToSelection() {
 
   if (_selectedBorough) setCheckboxGroup(filterBoroughEl, [_selectedBorough]);
   else setCheckboxGroup(filterBoroughEl, _manualBoroughFilter ?? "all");
+}
+
+function syncHeatmapFiltersToSelection() {
+  if (_selectedHeatmapCell) {
+    setCheckboxGroup(document.getElementById("filter-acc"), [_selectedHeatmapCell.acc]);
+    setCheckboxGroup(document.getElementById("filter-price-bin"), [String(_selectedHeatmapCell.bin)]);
+    return;
+  }
+
+  setCheckboxGroup(document.getElementById("filter-acc"), _manualAccFilter ?? "all");
+  setCheckboxGroup(document.getElementById("filter-price-bin"), _manualPriceBinFilter ?? "all");
 }
 
 function handleFilterChange(e, containerEl, callback = updateCharts) {
@@ -219,6 +237,7 @@ function focusHeatmapCell(cell) {
   _selectedHeatmapCell = sameCell ? null : cell;
   _selectedRoomType = sameCell ? null : cell.room;
   syncGlobalFiltersToSelection();
+  syncHeatmapFiltersToSelection();
   updateCharts();
 }
 
@@ -254,6 +273,14 @@ function rowsForNeighborhoodViews(f) {
 
 function rowsForAllBoroughComparison(f) {
   return rowsForLinkedCharts(f);
+}
+
+function rowsForHeatmap(f) {
+  return filterListings(allRows, {
+    roomType: _selectedHeatmapCell ? f.roomType : selectedRoomTypesFromFilters(f),
+    borough: _selectedBorough ? [_selectedBorough] : f.borough,
+    neighborhood: _selectedNeighborhood ?? "all",
+  });
 }
 
 function updateCharts() {
@@ -323,15 +350,17 @@ function buildChart3Legend(types) {
 
 function updateChart4(f = getSourceFilters()) {
   if (!allRows) return;
-  const heatmapRows = rowsForLinkedCharts(f, {
-    keepRoomContext: Boolean(_selectedHeatmapCell),
-  });
+  const heatmapRows = rowsForHeatmap(f);
   const heatmapData = aggregateHeatmap(heatmapRows);
 
   renderHeatmap("#chart4", heatmapData, {
     roomFilter: _selectedHeatmapCell ? f.roomType : selectedRoomTypesFromFilters(f),
-    accFilter: checkedValues(document.getElementById("filter-acc")),
-    priceBinFilter: checkedValues(document.getElementById("filter-price-bin")),
+    accFilter: _selectedHeatmapCell
+      ? (_manualAccFilter ?? checkedValues(document.getElementById("filter-acc")))
+      : checkedValues(document.getElementById("filter-acc")),
+    priceBinFilter: _selectedHeatmapCell
+      ? (_manualPriceBinFilter ?? checkedValues(document.getElementById("filter-price-bin")))
+      : checkedValues(document.getElementById("filter-price-bin")),
     selectedCell: _selectedHeatmapCell,
     onCellClick: focusHeatmapCell,
   });
@@ -367,6 +396,7 @@ async function main() {
   try {
     allRows = await loadListings();
     captureManualFilters();
+    captureManualHeatmapFilters();
     updateCharts();
 
     filterRoomEl?.addEventListener("change", (e) => {
@@ -388,16 +418,25 @@ async function main() {
     });
 
     document.getElementById("filter-acc")?.addEventListener("change", (e) => {
-      handleFilterChange(e, document.getElementById("filter-acc"), () => updateChart4());
+      handleFilterChange(e, document.getElementById("filter-acc"), () => {
+        _selectedHeatmapCell = null;
+        captureManualHeatmapFilters();
+        updateChart4();
+      });
     });
 
     document.getElementById("filter-price-bin")?.addEventListener("change", (e) => {
-      handleFilterChange(e, document.getElementById("filter-price-bin"), () => updateChart4());
+      handleFilterChange(e, document.getElementById("filter-price-bin"), () => {
+        _selectedHeatmapCell = null;
+        captureManualHeatmapFilters();
+        updateChart4();
+      });
     });
 
     document.getElementById("filter-heatmap-reset")?.addEventListener("click", () => {
       setCheckboxGroup(document.getElementById("filter-acc"), "all");
       setCheckboxGroup(document.getElementById("filter-price-bin"), "all");
+      captureManualHeatmapFilters();
       if (_selectedHeatmapCell) {
         _selectedRoomType = null;
         _selectedHeatmapCell = null;
@@ -416,6 +455,7 @@ async function main() {
       _selectedNeighborhood = null;
       _selectedHeatmapCell = null;
       captureManualFilters();
+      captureManualHeatmapFilters();
       updateCharts();
     });
   } catch (e) {
