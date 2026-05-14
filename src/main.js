@@ -12,6 +12,7 @@ import {
   HEATMAP_PRICE_BINS,
   priceBinLabel,
   aggregateRatingDistribution,
+  aggregateRatingDistributionByBorough,
   aggregateInstantBookable,
 } from "./utils/aggregates.js";
 import { renderResponseStack } from "./pages/responseStackChart.js";
@@ -186,8 +187,8 @@ function updateCharts() {
   renderStackBarChart("#chart3", preferredData);
   buildChart3Legend(preferredData.types);
 
-  // Chart 5 - Rating Pie
-  const pieData = aggregateRatingDistribution(r2);
+  // Chart 5 - Rating Pie (shows all 5 boroughs, uses room filter only)
+  const pieData = aggregateRatingDistributionByBorough(r1);
   renderRatingPie("#chart5", pieData);
 
   // Chart 4 - Heatmap
