@@ -26,10 +26,12 @@ function median(arr) {
 
 /** Aggregate rows → [{ neighbourhood, borough, medianPrice }] sorted A–Z */
 function aggregateMedianPrice(rows, boroughFilter = "all") {
-  const filtered =
-    boroughFilter === "all"
-      ? rows
-      : rows.filter((r) => r.neighbourhood_group_cleansed === boroughFilter);
+  const filtered = (boroughFilter === "all" || (Array.isArray(boroughFilter) && boroughFilter.length === 0))
+    ? rows
+    : rows.filter((r) => {
+        if (Array.isArray(boroughFilter)) return boroughFilter.includes(r.neighbourhood_group_cleansed);
+        return r.neighbourhood_group_cleansed === boroughFilter;
+      });
 
   const map = new Map();
   for (const r of filtered) {

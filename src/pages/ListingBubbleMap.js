@@ -19,10 +19,12 @@ const BOROUGH_COLORS = {
 
 /** Aggregate raw rows → per-neighbourhood { neighbourhood, borough, lat, lng, count } */
 function aggregateByNeighbourhood(rows, boroughFilter = "all") {
-  const filtered =
-    boroughFilter === "all"
-      ? rows
-      : rows.filter((r) => r.neighbourhood_group_cleansed === boroughFilter);
+  const filtered = (boroughFilter === "all" || (Array.isArray(boroughFilter) && boroughFilter.length === 0))
+    ? rows
+    : rows.filter((r) => {
+        if (Array.isArray(boroughFilter)) return boroughFilter.includes(r.neighbourhood_group_cleansed);
+        return r.neighbourhood_group_cleansed === boroughFilter;
+      });
 
   const map = new Map();
   for (const r of filtered) {
@@ -114,8 +116,10 @@ export async function renderListingBubbleMap(
       .attr("d", path)
       .attr("fill", (feat) => {
         const name = feat.properties.BoroName || feat.properties.name || "";
-        const dimmed = boroughFilter !== "all" && name !== boroughFilter;
-        return dimmed ? "#f1f5f9" : "#e2e8f0";
+        const isSelected = boroughFilter === "all" || 
+                           (Array.isArray(boroughFilter) && (boroughFilter.length === 0 || boroughFilter.includes(name))) ||
+                           (typeof boroughFilter === "string" && name === boroughFilter);
+        return isSelected ? "#e2e8f0" : "#f1f5f9";
       })
       .attr("stroke", "#cbd5e1")
       .attr("stroke-width", 0.5);
