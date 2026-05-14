@@ -119,8 +119,20 @@ function updateSheets() {
       updateAll();
     },
   };
-  if (chart12El) renderNeighbourhoodDensityBubbleMap(chart12El, allRows, f.borough, sheetOptions);
-  if (chart13El) renderNeighbourhoodMedianPriceBarChart(chart13El, allRows, f.borough, sheetOptions);
+  if (chart12El)
+    renderNeighbourhoodDensityBubbleMap(
+      chart12El,
+      allRows,
+      f.borough,
+      sheetOptions,
+    );
+  if (chart13El)
+    renderNeighbourhoodMedianPriceBarChart(
+      chart13El,
+      allRows,
+      f.borough,
+      sheetOptions,
+    );
 }
 
 function updateAll() {
