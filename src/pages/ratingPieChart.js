@@ -4,16 +4,16 @@ import { CHROME } from '../utils/palette.js';
 
 /** Color mapping for rating groups */
 const RATING_COLORS = {
-  high: '#2563eb',  // blue — "Cao (≥4.5)"
-  mid:  '#ea580c',  // orange — "Trung (4.0–4.5)"
-  low:  '#dc2626',  // red — "Thấp (<4.0)"
+  high: '#2563eb',  // blue — "High (≥4.5)"
+  mid:  '#ea580c',  // orange — "Mid (4.0–4.5)"
+  low:  '#dc2626',  // red — "Low (<4.0)"
 };
 
 /** Rating group labels for legend */
 const RATING_LABELS = [
-  { key: 'high', group: 'Cao (≥4.5)' },
-  { key: 'mid',  group: 'Trung (4.0–4.5)' },
-  { key: 'low',  group: 'Thấp (<4.0)' },
+  { key: 'high', group: 'High (≥4.5)' },
+  { key: 'mid',  group: 'Mid (4.0–4.5)' },
+  { key: 'low',  group: 'Low (<4.0)' },
 ];
 
 /** Ordered list of NYC boroughs */
@@ -28,8 +28,11 @@ const BOROUGH_ORDER = ['Bronx', 'Brooklyn', 'Manhattan', 'Queens', 'Staten Islan
  *   Object keyed by borough name; each value is an array from
  *   aggregateRatingDistributionByBorough.
  * @param {object} [options]
+ * @param {string|null} [options.selectedBorough]  Currently selected borough (for highlighting)
+ * @param {function}     [options.onBoroughClick]   Called with borough name when a pie is clicked
  */
 export function renderRatingPie(containerSelector, data, options = {}) {
+  const { selectedBorough = null, onBoroughClick } = options;
   /* ── Layout constants ── */
   const COLS       = 5;
   const PIE_RADIUS = 70;
@@ -70,15 +73,22 @@ export function renderRatingPie(containerSelector, data, options = {}) {
     const boroughData = data[borough] || [];
     const total = d3.sum(boroughData, (d) => d.count);
 
-    // Borough title
+    // Dim non-selected boroughs when a borough is selected
+    const isDimmed = selectedBorough && selectedBorough !== borough;
+    const isActive = selectedBorough === borough;
+
+    // Borough title (clickable)
     svg.append('text')
       .attr('x', cx)
       .attr('y', PAD_TOP + TITLE_H / 2 + 2)
       .attr('text-anchor', 'middle')
-      .attr('fill', CHROME.tick)
-      .attr('font-size', 12)
+      .attr('fill', isActive ? '#1d4ed8' : CHROME.tick)
+      .attr('font-size', isActive ? 13 : 12)
       .attr('font-weight', 600)
-      .text(borough);
+      .attr('cursor', onBoroughClick ? 'pointer' : 'default')
+      .attr('text-decoration', isActive ? 'underline' : 'none')
+      .text(borough)
+      .on('click', () => { if (onBoroughClick) onBoroughClick(borough); });
 
     // Empty-state
     if (!boroughData.length || total === 0) {
@@ -88,11 +98,14 @@ export function renderRatingPie(containerSelector, data, options = {}) {
         .attr('text-anchor', 'middle')
         .attr('fill', CHROME.tick)
         .attr('font-size', 11)
+        .attr('opacity', isDimmed ? 0.3 : 1)
         .text('No data');
       return;
     }
 
-    const g = svg.append('g').attr('transform', `translate(${cx},${cy})`);
+    const g = svg.append('g')
+      .attr('transform', `translate(${cx},${cy})`)
+      .attr('opacity', isDimmed ? 0.3 : 1);
 
     const arcs = pie(boroughData);
 
@@ -105,13 +118,14 @@ export function renderRatingPie(containerSelector, data, options = {}) {
       .attr('stroke', '#fff')
       .attr('stroke-width', 2)
       .attr('cursor', 'pointer')
+      .on('click', () => { if (onBoroughClick) onBoroughClick(borough); })
       .on('mouseenter', (event, d) => {
         const pct = ((d.data.count / total) * 100).toFixed(1);
         chartTooltip.show(
           `<span style="color:#6b6b67">${borough}</span><br/>` +
-          `<span style="color:#6b6b67">Nhóm:</span> <strong>${d.data.group}</strong><br/>` +
-          `<span style="color:#6b6b67">Số listing:</span> <strong>${d3.format(',')(d.data.count)}</strong><br/>` +
-          `<span style="color:#6b6b67">Tỉ lệ:</span> <strong>${pct}%</strong>`,
+          `<span style="color:#6b6b67">Group:</span> <strong>${d.data.group}</strong><br/>` +
+          `<span style="color:#6b6b67">Listings:</span> <strong>${d3.format(',')(d.data.count)}</strong><br/>` +
+          `<span style="color:#6b6b67">Share:</span> <strong>${pct}%</strong>`,
           event.clientX,
           event.clientY,
         );

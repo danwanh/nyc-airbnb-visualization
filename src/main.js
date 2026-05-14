@@ -106,6 +106,17 @@ function handleFilterChange(e, containerEl, callback) {
   (callback ?? updateCharts)();
 }
 
+function fillChart56RoomSelects() {
+  const ROOM_OPTS = ROOM_TYPES.map((rt) => ({ label: rt.label, value: rt.csv }));
+  for (const id of ['filter-chart5-room', 'filter-chart6-room']) {
+    const el = document.getElementById(id);
+    if (!el || el.options.length > 1) continue;
+    for (const o of ROOM_OPTS) {
+      el.append(new Option(o.label, o.value));
+    }
+  }
+}
+
 function getFilters() {
   const getChecked = (el) => Array.from(el?.querySelectorAll('input:not([value="all"]):checked') || []).map(cb => cb.value);
   return {
@@ -187,13 +198,14 @@ function updateCharts() {
   renderStackBarChart("#chart3", preferredData);
   buildChart3Legend(preferredData.types);
 
-  // Chart 5 - Rating Pie (shows all 5 boroughs, uses room filter only)
-  const pieData = aggregateRatingDistributionByBorough(r1);
-  renderRatingPie("#chart5", pieData);
+  // Chart 5 - Rating Pie (shows all 5 boroughs, uses its OWN room filter)
+  updateChart5();
 
   // Chart 4 - Heatmap
   updateChart4();
 
+  // Chart 6 - Instant Bookable (re-render to update borough highlight)
+  updateChart6();
   // Update New Charts (12 & 13)
   const borough = f.borough;
   const neighborhoodOptions = {
@@ -243,9 +255,48 @@ function updateChart4() {
   });
 }
 
+/** Chart 5 uses its own local Room Type select (all boroughs always shown). */
+function updateChart5() {
+  if (!allRows) return;
+  const localRoom = document.getElementById("filter-chart5-room")?.value ?? "all";
+  const rows = filterListings(allRows, { roomType: localRoom, borough: "all" });
+  const pieData = aggregateRatingDistributionByBorough(rows);
+  const f = getFilters();
+  renderRatingPie("#chart5", pieData, {
+    selectedBorough: f.borough === "all" ? null : f.borough,
+    onBoroughClick: (borough) => {
+      if (!filterBoroughEl) return;
+      const next = filterBoroughEl.value === borough ? "all" : borough;
+      filterBoroughEl.value = next;
+      updateCharts();
+    },
+  });
+}
+
+/** Chart 6 uses its own local Room Type select (static, no global filter). */
+function updateChart6() {
+  if (!allRows) return;
+  const localRoom = document.getElementById("filter-chart6-room")?.value ?? "all";
+  const rows = localRoom === "all"
+    ? allRows
+    : allRows.filter((r) => r.room_type === localRoom);
+  const ibData = aggregateInstantBookable(rows);
+  const f = getFilters();
+  renderInstantBookableChart("#chart6", ibData, {
+    selectedBorough: f.borough === "all" ? null : f.borough,
+    onBoroughClick: (borough) => {
+      if (!filterBoroughEl) return;
+      const next = filterBoroughEl.value === borough ? "all" : borough;
+      filterBoroughEl.value = next;
+      updateCharts();
+    },
+  });
+}
+
 async function main() {
   setStatus("Loading listings.csv…");
   fillFilterSelects();
+  fillChart56RoomSelects();
 
   try {
     allRows = await loadListings();
@@ -280,12 +331,14 @@ async function main() {
     });
 
 
-    // ── Chart 6: Instant Bookable (static overview, no filter) ──
-    function updateChart6() {
-      if (!allRows) return;
-      const ibData = aggregateInstantBookable(allRows);
-      renderInstantBookableChart("#chart6", ibData);
-    }
+    // ── Chart 5 & 6 local filters ──
+    document
+      .getElementById("filter-chart5-room")
+      ?.addEventListener("change", updateChart5);
+    document
+      .getElementById("filter-chart6-room")
+      ?.addEventListener("change", updateChart6);
+
     updateChart6();
 
   } catch (e) {
