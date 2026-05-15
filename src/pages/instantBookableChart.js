@@ -18,6 +18,7 @@ const IB_LABELS = {
  * @param {object} [options]
  * @param {string|null} [options.selectedBorough]  Currently selected borough
  * @param {function}     [options.onBoroughClick]   Called with borough name when bar is clicked
+ * @param {boolean}    [options.dimSelection]   When true, dim non-selected boroughs / room panels
  */
 export function renderInstantBookableChart(
   containerSelector,
@@ -26,6 +27,7 @@ export function renderInstantBookableChart(
 ) {
   const {
     selectedBorough = null,
+    dimSelection = false,
     focusedRoomType = null,
     onBoroughClick,
     onBoroughRoomClick,
@@ -99,7 +101,7 @@ export function renderInstantBookableChart(
     const panel = svg.append("g").attr("transform", `translate(${px},${py})`);
 
     const panelTitleOpacity =
-      focusedRoomType && rt !== focusedRoomType ? 0.28 : 1;
+      dimSelection && focusedRoomType && rt !== focusedRoomType ? 0.28 : 1;
 
     // Panel title
     panel
@@ -148,9 +150,11 @@ export function renderInstantBookableChart(
       const bw = xScale.bandwidth();
 
       const boroughDim =
-        selectedBorough && selectedBorough !== borough ? 0.25 : 1;
+        dimSelection && selectedBorough && selectedBorough !== borough
+          ? 0.25
+          : 1;
       const roomPanelDim =
-        focusedRoomType && rt !== focusedRoomType ? 0.28 : 1;
+        dimSelection && focusedRoomType && rt !== focusedRoomType ? 0.28 : 1;
       const barOpacity = Math.min(boroughDim, roomPanelDim);
 
       // Bottom segment: notInstant

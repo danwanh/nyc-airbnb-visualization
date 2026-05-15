@@ -47,6 +47,7 @@ function renderLegend(root) {
 
 /**
  * Render the heatmap into a div container using an HTML table.
+ * @param {boolean} [options.dimExternalRoomHighlight] When true, dim heatmap rows for non-highlight room (cross-chart room focus)
  */
 export function renderHeatmap(containerSelector, data, options = {}) {
   const root = document.querySelector(containerSelector);
@@ -62,6 +63,7 @@ export function renderHeatmap(containerSelector, data, options = {}) {
   const accGroups = normalizeFilter(options.accFilter, HEATMAP_ACC_GROUPS);
   const selectedCell = options.selectedCell ?? null;
   const highlightRoom = options.highlightRoom ?? null;
+  const dimExternalRoomHighlight = options.dimExternalRoomHighlight ?? false;
   const onCellClick = options.onCellClick;
   let bins = [...HEATMAP_PRICE_BINS];
 
@@ -104,7 +106,10 @@ export function renderHeatmap(containerSelector, data, options = {}) {
 
   rooms.forEach((room) => {
     const rowRoomDimmed =
-      !selectedCell && highlightRoom && room !== highlightRoom;
+      dimExternalRoomHighlight &&
+      !selectedCell &&
+      highlightRoom &&
+      room !== highlightRoom;
     accGroups.forEach((acc, ai) => {
       html += "<tr>";
       if (ai === 0) {

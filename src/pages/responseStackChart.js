@@ -10,25 +10,18 @@ const KEYS = STACK_KEYS;
 const DIM_OTHER = 0.28;
 const DIM_SELECTED = 1;
 
-function dimOpacity(selectedBorough, borough) {
-  if (!selectedBorough) return 1;
-  return borough === selectedBorough ? DIM_SELECTED : DIM_OTHER;
-}
-
 /**
  * @typedef {object} ResponseStackOptions
  * @property {string | null} [selectedBorough] — borough highlighted / linked to chart 2
- * @property {(borough: string) => void} [onBoroughClick] — click segment or label to toggle chart 2 borough filter
- */
-
-/**
- * Horizontal stacked bar: % of listings per borough by host response time (known responses only).
- * @param {string} containerSelector
- * @param {object[]} data
- * @param {ResponseStackOptions} [options]
+ * @property {boolean} [dimSelection] — when true, dim non-selected boroughs; when false, same opacity (selection still filters data in main)
  */
 export function renderResponseStack(containerSelector, data, options = {}) {
-  const { selectedBorough = null, onBoroughClick } = options;
+  const { selectedBorough = null, dimSelection = false, onBoroughClick } = options;
+
+  function dimOpacity(borough) {
+    if (!dimSelection || !selectedBorough) return 1;
+    return borough === selectedBorough ? DIM_SELECTED : DIM_OTHER;
+  }
 
   const margin = { top: 10, right: 16, bottom: 40, left: 108 };
   const W = 520;
@@ -109,7 +102,7 @@ export function renderResponseStack(containerSelector, data, options = {}) {
     .attr("rx", 6)
     .attr("fill", SELECTION_FILL)
     .attr("opacity", (d) =>
-      selectedBorough && d.borough === selectedBorough ? 0.14 : 0,
+      dimSelection && selectedBorough && d.borough === selectedBorough ? 0.14 : 0,
     )
     .attr("pointer-events", "none");
 
@@ -130,10 +123,10 @@ export function renderResponseStack(containerSelector, data, options = {}) {
         .attr("height", y.bandwidth())
         .attr("fill", COLORS[key])
         .attr("rx", li === 0 ? 4 : 0)
-        .attr("opacity", (d) => dimOpacity(selectedBorough, d.data.borough))
+        .attr("opacity", (d) => dimOpacity(d.data.borough))
         .attr("cursor", onBoroughClick ? "pointer" : "default")
         .attr("stroke", (d) =>
-          selectedBorough && d.data.borough === selectedBorough
+          dimSelection && selectedBorough && d.data.borough === selectedBorough
             ? "rgba(99, 102, 241, 0.45)"
             : "none",
         )
@@ -178,7 +171,7 @@ export function renderResponseStack(containerSelector, data, options = {}) {
         .attr("font-size", 11.5)
         .attr("font-weight", 600)
         .attr("pointer-events", "none")
-        .attr("opacity", (d) => dimOpacity(selectedBorough, d.data.borough))
+        .attr("opacity", (d) => dimOpacity(d.data.borough))
         .text((d) => {
           const w = x(d[1]) - x(d[0]);
           return w > 40 ? `${(d[1] - d[0]).toFixed(2)}%` : "";
@@ -194,13 +187,13 @@ export function renderResponseStack(containerSelector, data, options = {}) {
     .selectAll("text")
     .attr("fill", function () {
       const label = d3.select(this).text();
-      return selectedBorough && label === selectedBorough
+      return dimSelection && selectedBorough && label === selectedBorough
         ? "#0f172a"
         : CHROME.tick;
     })
     .attr("font-weight", function () {
       const label = d3.select(this).text();
-      return selectedBorough && label === selectedBorough ? 600 : 400;
+      return dimSelection && selectedBorough && label === selectedBorough ? 600 : 400;
     })
     .attr("font-size", 12.5)
     .attr("dx", -8)

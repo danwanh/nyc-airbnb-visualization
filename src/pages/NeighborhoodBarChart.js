@@ -65,6 +65,7 @@ export function renderNeighborhoodBarChart(
   const {
     selectedNeighborhood = null,
     selectedBorough = null,
+    dimSelection = false,
     onNeighborhoodClick,
   } = options;
   const data = aggregateMedianPrice(rows, boroughFilter);
@@ -198,6 +199,7 @@ export function renderNeighborhoodBarChart(
     .attr("height", 0)
     .attr("fill", (d) => BOROUGH_COLORS[d.borough] || "#70ad47")
     .attr("fill-opacity", (d) => {
+      if (!dimSelection) return 0.85;
       if (selectedNeighborhood) {
         return d.neighbourhood === selectedNeighborhood ? 1.0 : 0.2;
       }
@@ -205,6 +207,7 @@ export function renderNeighborhoodBarChart(
       return 0.85;
     })
     .attr("stroke", (d) => {
+      if (!dimSelection) return "none";
       if (selectedNeighborhood && d.neighbourhood === selectedNeighborhood) {
         return "#0f172a";
       }
@@ -218,6 +221,7 @@ export function renderNeighborhoodBarChart(
       return "none";
     })
     .attr("stroke-width", (d) => {
+      if (!dimSelection) return 0;
       if (selectedNeighborhood && d.neighbourhood === selectedNeighborhood) {
         return 1.5;
       }
@@ -239,7 +243,12 @@ export function renderNeighborhoodBarChart(
         selectedBorough &&
         d.borough === selectedBorough;
       const isUnrestricted = !selectedNeighborhood && !selectedBorough;
-      if (isFocusNeighborhood || isFocusBoroughBar || isUnrestricted) {
+      if (
+        !dimSelection ||
+        isFocusNeighborhood ||
+        isFocusBoroughBar ||
+        isUnrestricted
+      ) {
         d3.select(this).attr("fill-opacity", 1);
       }
       chartTooltip.show(
@@ -263,6 +272,7 @@ export function renderNeighborhoodBarChart(
     })
     .on("mouseleave", function (event, d) {
       d3.select(this).attr("fill-opacity", () => {
+        if (!dimSelection) return 0.85;
         if (selectedNeighborhood) {
           return d.neighbourhood === selectedNeighborhood ? 1.0 : 0.2;
         }

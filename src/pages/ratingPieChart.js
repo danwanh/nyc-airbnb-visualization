@@ -30,10 +30,12 @@ const BOROUGH_ORDER = [
  * @param {string|null} [options.selectedBorough]  Currently selected borough (for highlighting)
  * @param {string[]|null} [options.visibleBoroughs]  If set, only these boroughs are drawn (checkbox filter)
  * @param {function}     [options.onBoroughClick]   Called with borough name when a pie is clicked
+ * @param {boolean}    [options.dimSelection]   When true, dim non-selected borough columns
  */
 export function renderRatingPie(containerSelector, data, options = {}) {
   const {
     selectedBorough = null,
+    dimSelection = false,
     visibleBoroughs = null,
     onBoroughClick,
   } = options;
@@ -114,8 +116,9 @@ export function renderRatingPie(containerSelector, data, options = {}) {
     const total = d3.sum(boroughData, (d) => d.count);
 
     // Dim non-selected boroughs when a borough is selected
-    const isDimmed = selectedBorough && selectedBorough !== borough;
-    const isActive = selectedBorough === borough;
+    const isDimmed =
+      dimSelection && selectedBorough && selectedBorough !== borough;
+    const isActive = dimSelection && selectedBorough === borough;
 
     // Borough title (clickable)
     svg

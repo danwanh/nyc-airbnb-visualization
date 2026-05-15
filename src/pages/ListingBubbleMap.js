@@ -62,6 +62,7 @@ export async function renderListingBubbleMap(
   const {
     selectedNeighborhood = null,
     selectedBorough = null,
+    dimSelection = false,
     onNeighborhoodClick,
   } = options;
   const svg = d3.select(selector);
@@ -158,6 +159,7 @@ export async function renderListingBubbleMap(
     .attr("r", (d) => baseRScale(d.count))
     .attr("fill", (d) => BOROUGH_COLORS[d.borough] || "#888")
     .attr("fill-opacity", (d) => {
+      if (!dimSelection) return 0.72;
       if (selectedNeighborhood) {
         return d.neighbourhood === selectedNeighborhood ? 0.95 : 0.15;
       }
@@ -165,6 +167,7 @@ export async function renderListingBubbleMap(
       return 0.72;
     })
     .attr("stroke", (d) => {
+      if (!dimSelection) return "#fff";
       if (selectedNeighborhood) {
         return d.neighbourhood === selectedNeighborhood ? "#0f172a" : "#fff";
       }
@@ -172,6 +175,7 @@ export async function renderListingBubbleMap(
       return "#fff";
     })
     .attr("stroke-width", (d) => {
+      if (!dimSelection) return 0.6;
       if (selectedNeighborhood) {
         return d.neighbourhood === selectedNeighborhood ? 1.5 : 0.6;
       }
@@ -187,7 +191,12 @@ export async function renderListingBubbleMap(
         selectedBorough &&
         d.borough === selectedBorough;
       const isUnrestricted = !selectedNeighborhood && !selectedBorough;
-      if (isFocusNeighborhood || isFocusBoroughOnly || isUnrestricted) {
+      if (
+        !dimSelection ||
+        isFocusNeighborhood ||
+        isFocusBoroughOnly ||
+        isUnrestricted
+      ) {
         d3.select(this).attr("fill-opacity", 1).attr("stroke", "#0f172a");
       }
       chartTooltip.show(
@@ -208,6 +217,7 @@ export async function renderListingBubbleMap(
     .on("mouseleave", function (event, d) {
       d3.select(this)
         .attr("fill-opacity", () => {
+          if (!dimSelection) return 0.72;
           if (selectedNeighborhood) {
             return d.neighbourhood === selectedNeighborhood ? 0.95 : 0.15;
           }
@@ -215,6 +225,7 @@ export async function renderListingBubbleMap(
           return 0.72;
         })
         .attr("stroke", () => {
+          if (!dimSelection) return "#fff";
           if (selectedNeighborhood) {
             return d.neighbourhood === selectedNeighborhood ? "#0f172a" : "#fff";
           }
@@ -259,6 +270,7 @@ export async function renderListingBubbleMap(
         .attr(
           "stroke-width",
           (d) => {
+            if (!dimSelection) return 0.6 * radiusCorrection;
             const thick = selectedNeighborhood
               ? d.neighbourhood === selectedNeighborhood
               : selectedBorough

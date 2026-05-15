@@ -10,6 +10,7 @@ export function renderReviewDotPlot(containerSelector, data, options = {}) {
   const {
     checkedRoomTypes = null,
     focusedRoomType = null,
+    dimSelection = false,
     onRoomTypeClick,
   } = options;
   const checkedSet =
@@ -17,8 +18,8 @@ export function renderReviewDotPlot(containerSelector, data, options = {}) {
       ? new Set(checkedRoomTypes)
       : null;
   const types = ROOM_TYPES.filter((t) => !checkedSet || checkedSet.has(t.csv));
-  const dimUnfocusedRoom = Boolean(focusedRoomType);
-  const margin = { top: 18, right: 18, bottom: 44, left: 168 };
+  const dimUnfocusedRoom = Boolean(focusedRoomType) && dimSelection;
+  const margin = { top: 26, right: 18, bottom: 44, left: 168 };
   const W = 520;
   const emptyH = 100;
 
@@ -92,10 +93,12 @@ export function renderReviewDotPlot(containerSelector, data, options = {}) {
 
   g.append("text")
     .attr("x", x(median))
-    .attr("y", iH + 16)
+    .attr("y", -6)
     .attr("text-anchor", "middle")
+    .attr("dominant-baseline", "auto")
     .attr("fill", CHROME.tick)
-    .attr("font-size", 10.5)
+    .attr("font-size", 10)
+    .attr("font-weight", 600)
     .text("Median");
 
   g.append("g")

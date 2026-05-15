@@ -9,26 +9,29 @@ import { CHROME } from "../utils/palette.js";
  *
  * @param {string} containerSelector  – CSS selector of an <svg> element
  * @param {{ hoods: string[], types: string[], pct: object, total: number }} data
- * @param {{ selectedBorough?: string|null }} [options]
+ * @param {{ selectedBorough?: string|null, dimSelection?: boolean }} [options]
  */
 export function renderStackBarChart(containerSelector, data, options = {}) {
   const {
     selectedBorough = null,
     focusedRoomType = null,
+    dimSelection = false,
     onBoroughClick,
     onSegmentClick,
   } = options;
   const { hoods, types, pct } = data;
 
   const segmentOpacity = (d, roomType) => {
-    const boroughDimmed = selectedBorough && d.data.hood !== selectedBorough;
+    const boroughDimmed =
+      dimSelection && selectedBorough && d.data.hood !== selectedBorough;
     const roomDimmed =
-      Boolean(focusedRoomType) && roomType !== focusedRoomType;
+      dimSelection && Boolean(focusedRoomType) && roomType !== focusedRoomType;
     return boroughDimmed || roomDimmed ? 0.28 : 1;
   };
 
   const isSelectedSegment = (d, roomType) =>
     Boolean(
+      dimSelection &&
       selectedBorough &&
       focusedRoomType &&
       d.data.hood === selectedBorough &&
@@ -188,10 +191,12 @@ export function renderStackBarChart(containerSelector, data, options = {}) {
         .selectAll("text")
         .attr("dy", "1.2em")
         .attr("fill", (b) =>
-          selectedBorough && b === selectedBorough ? "#0f172a" : CHROME.tick,
+          dimSelection && selectedBorough && b === selectedBorough
+            ? "#0f172a"
+            : CHROME.tick,
         )
         .attr("font-weight", (b) =>
-          selectedBorough && b === selectedBorough ? 600 : 400,
+          dimSelection && selectedBorough && b === selectedBorough ? 600 : 400,
         )
         .attr("font-size", 12)
         .attr("cursor", onBoroughClick ? "pointer" : "default")

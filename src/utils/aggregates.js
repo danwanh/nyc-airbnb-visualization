@@ -271,6 +271,27 @@ export function aggregateHeatmap(rows) {
   return { counts, maxCount, total };
 }
 
+/**
+ * Further restrict rows to one heatmap cell (room × acc group × price bin).
+ * @param {object[]} rows
+ * @param {{ room: string, acc: string, bin: number }} cell
+ */
+export function filterRowsMatchingHeatmapCell(rows, cell) {
+  if (!cell || !rows?.length) return rows;
+  return rows.filter((row) => {
+    const rt = (row.room_type ?? "").trim();
+    if (rt !== cell.room) return false;
+    const acc = parseInt(row.accommodates ?? 0, 10);
+    if (!acc) return false;
+    const ag = _accGroupOf(acc);
+    if (ag !== cell.acc) return false;
+    const price = _parsePrice(row.price);
+    if (!Number.isFinite(price) || price < 0) return false;
+    const bin = _priceBinOf(price);
+    return bin === cell.bin;
+  });
+}
+
 
 import { ROOM_TYPE_COLORS } from "./palette.js";
 export { ROOM_TYPE_COLORS };

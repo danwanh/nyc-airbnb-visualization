@@ -12,6 +12,7 @@ import {
   priceBinLabel,
   aggregateRatingDistributionByBorough,
   aggregateInstantBookable,
+  filterRowsMatchingHeatmapCell,
 } from "./utils/aggregates.js";
 import { ROOM_TYPE_COLORS, BOROUGH_COLORS } from "./utils/palette.js";
 import { renderResponseStack } from "./pages/responseStackChart.js";
@@ -29,10 +30,23 @@ let _selectedBorough = null;
 let _selectedRoomType = null;
 let _selectedNeighborhood = null;
 let _selectedHeatmapCell = null;
-let _manualRoomFilter = null;
-let _manualBoroughFilter = null;
 let _manualAccFilter = null;
 let _manualPriceBinFilter = null;
+
+/** Which chart set borough / neighbourhood selection (dim only on that chart). */
+let _lastBoroughChartSource = null;
+let _lastNeighborhoodChartSource = null;
+/** Borough × room combined selection: stack vs instant bookable (infer when both set). */
+let _lastBoroughRoomSource = null;
+
+const SEL_RESPONSE = "c1-response";
+const SEL_REVIEW = "c2-review";
+const SEL_STACK = "c3-stack";
+const SEL_HEATMAP = "c4-heatmap";
+const SEL_PIE = "c5-pie";
+const SEL_INSTANT = "c6-instant";
+const SEL_MAP = "c12-map";
+const SEL_NHOOD_BAR = "c13-nhoodbar";
 
 const filterRoomEl = document.getElementById("filter-room");
 const filterBoroughEl = document.getElementById("filter-borough");
@@ -120,31 +134,41 @@ function setCheckboxGroup(containerEl, selectedValues = "all") {
   }
 }
 
-function captureManualFilters() {
-  _manualRoomFilter = checkedValues(filterRoomEl);
-  _manualBoroughFilter = checkedValues(filterBoroughEl);
-}
-
 function captureManualHeatmapFilters() {
   _manualAccFilter = checkedValues(document.getElementById("filter-acc"));
   _manualPriceBinFilter = checkedValues(document.getElementById("filter-price-bin"));
 }
 
 function getSourceFilters() {
-  const { roomType, borough } = getFilters();
+  return getFilters();
+}
+
+function listingFilterForCharts(f) {
   return {
-    roomType,
-    borough,
+    roomType: _selectedRoomType ? [_selectedRoomType] : f.roomType,
+    borough: _selectedBorough ? [_selectedBorough] : f.borough,
     neighborhood: _selectedNeighborhood ?? "all",
   };
 }
 
-function syncGlobalFiltersToSelection() {
-  if (_selectedRoomType) setCheckboxGroup(filterRoomEl, [_selectedRoomType]);
-  else setCheckboxGroup(filterRoomEl, _manualRoomFilter ?? "all");
+/** Checkbox sidebar only — no chart-driven narrowing (metrics unchanged on source chart). */
+function checkboxOnlyListingFilter(f) {
+  return {
+    roomType: f.roomType,
+    borough: f.borough,
+    neighborhood: "all",
+  };
+}
 
-  if (_selectedBorough) setCheckboxGroup(filterBoroughEl, [_selectedBorough]);
-  else setCheckboxGroup(filterBoroughEl, _manualBoroughFilter ?? "all");
+function rowsCheckboxOnly(f) {
+  return filterListings(allRows, checkboxOnlyListingFilter(f));
+}
+
+/** Heatmap room rows: checkbox list, or the single room when a cell / chart room is focused (matches aggregated rows). */
+function heatmapRoomFilterForDisplay(f) {
+  if (_selectedHeatmapCell) return [_selectedHeatmapCell.room];
+  if (_selectedRoomType) return [_selectedRoomType];
+  return f.roomType;
 }
 
 function syncHeatmapFiltersToSelection() {
@@ -182,6 +206,16 @@ function getFilters() {
   };
 }
 
+function inferSelectionSource() {
+  if (_selectedHeatmapCell) return SEL_HEATMAP;
+  if (_selectedNeighborhood) return _lastNeighborhoodChartSource ?? SEL_MAP;
+  if (_selectedBorough && _selectedRoomType)
+    return _lastBoroughRoomSource ?? SEL_STACK;
+  if (_selectedRoomType) return SEL_REVIEW;
+  if (_selectedBorough) return _lastBoroughChartSource ?? SEL_RESPONSE;
+  return null;
+}
+
 function neighborhoodBorough(neighborhood) {
   if (!neighborhood || neighborhood === "all" || !allRows) return null;
   return allRows.find((row) => row.neighbourhood_cleansed === neighborhood)
@@ -195,33 +229,46 @@ function selectedBoroughFromFilters(f) {
 }
 
 function focusRoom(roomType) {
+  _lastBoroughRoomSource = null;
   _selectedRoomType = _selectedRoomType === roomType ? null : roomType;
   _selectedHeatmapCell = null;
-  syncGlobalFiltersToSelection();
+  syncHeatmapFiltersToSelection();
   updateCharts();
 }
 
-function focusBorough(borough) {
+function focusBorough(borough, source) {
+  _lastBoroughRoomSource = null;
   _selectedBorough = _selectedBorough === borough ? null : borough;
   _selectedNeighborhood = null;
-  syncGlobalFiltersToSelection();
+  if (_selectedBorough) _lastBoroughChartSource = source;
+  else _lastBoroughChartSource = null;
   updateCharts();
 }
 
-function focusBoroughAndRoom(borough, roomType) {
+function focusBoroughAndRoom(borough, roomType, source = SEL_STACK) {
   const isSameSelection = _selectedBorough === borough && _selectedRoomType === roomType;
   _selectedNeighborhood = null;
   _selectedHeatmapCell = null;
+  syncHeatmapFiltersToSelection();
   _selectedBorough = isSameSelection ? null : borough;
   _selectedRoomType = isSameSelection ? null : roomType;
-  syncGlobalFiltersToSelection();
+  if (!isSameSelection && _selectedBorough) {
+    _lastBoroughChartSource = source;
+    _lastBoroughRoomSource = source;
+  }
+  if (isSameSelection) {
+    _lastBoroughChartSource = null;
+    _lastBoroughRoomSource = null;
+  }
   updateCharts();
 }
 
-function focusNeighborhood(neighborhood, borough = null) {
+function focusNeighborhood(neighborhood, borough = null, source = SEL_MAP) {
+  _lastBoroughRoomSource = null;
   _selectedNeighborhood = _selectedNeighborhood === neighborhood ? null : neighborhood;
   _selectedBorough = _selectedNeighborhood ? borough : null;
-  syncGlobalFiltersToSelection();
+  if (_selectedNeighborhood) _lastNeighborhoodChartSource = source;
+  else _lastNeighborhoodChartSource = null;
   updateCharts();
 }
 
@@ -232,32 +279,24 @@ function focusHeatmapCell(cell) {
     _selectedHeatmapCell.acc === cell.acc &&
     _selectedHeatmapCell.bin === cell.bin;
 
+  _lastBoroughRoomSource = null;
   _selectedHeatmapCell = sameCell ? null : cell;
   _selectedRoomType = sameCell ? null : cell.room;
-  syncGlobalFiltersToSelection();
   syncHeatmapFiltersToSelection();
   updateCharts();
 }
 
 function rowsForResponseOverview(f) {
-  return filterListings(allRows, {
-    roomType: f.roomType,
-    borough: f.borough,
-    neighborhood: f.neighborhood ?? "all",
-  });
+  return filterListings(allRows, listingFilterForCharts(f));
 }
 
 function rowsForDashboard(f) {
-  return filterListings(allRows, f);
+  return filterListings(allRows, listingFilterForCharts(f));
 }
 
-/** Rows matching dashboard checkboxes + map neighbourhood selection (chart dims use same base data). */
+/** Same listing scope as other aggregates (checkbox ∩ chart selection). */
 function rowsForLinkedCharts(f) {
-  return filterListings(allRows, {
-    roomType: f.roomType,
-    borough: f.borough,
-    neighborhood: f.neighborhood ?? "all",
-  });
+  return filterListings(allRows, listingFilterForCharts(f));
 }
 
 function rowsForNeighborhoodViews(f) {
@@ -269,11 +308,11 @@ function rowsForAllBoroughComparison(f) {
 }
 
 function rowsForHeatmap(f) {
-  return filterListings(allRows, {
-    roomType: f.roomType,
-    borough: f.borough,
-    neighborhood: f.neighborhood ?? "all",
-  });
+  let rows = filterListings(allRows, listingFilterForCharts(f));
+  if (_selectedHeatmapCell) {
+    rows = filterRowsMatchingHeatmapCell(rows, _selectedHeatmapCell);
+  }
+  return rows;
 }
 
 function updateCharts() {
@@ -281,25 +320,51 @@ function updateCharts() {
 
   chartTooltip.hide();
 
+  const selectionSource = inferSelectionSource();
+  const dim = (id) => selectionSource === id;
+
   const sourceFilters = getSourceFilters();
   const selectedBorough = selectedBoroughFromFilters(sourceFilters);
-  const responseRows = rowsForResponseOverview(sourceFilters);
-  const dashboardRows = rowsForDashboard(sourceFilters);
-  const linkedRows = rowsForLinkedCharts(sourceFilters);
-  const neighborhoodRows = rowsForNeighborhoodViews(sourceFilters);
+  const responseRows =
+    selectionSource === SEL_RESPONSE
+      ? rowsCheckboxOnly(sourceFilters)
+      : rowsForResponseOverview(sourceFilters);
+  const dashboardRows =
+    selectionSource === SEL_STACK
+      ? rowsCheckboxOnly(sourceFilters)
+      : rowsForDashboard(sourceFilters);
+  const linkedRows =
+    selectionSource === SEL_REVIEW
+      ? rowsCheckboxOnly(sourceFilters)
+      : rowsForLinkedCharts(sourceFilters);
+  const neighborhoodRowsMap =
+    selectionSource === SEL_MAP
+      ? rowsCheckboxOnly(sourceFilters)
+      : rowsForNeighborhoodViews(sourceFilters);
+  const neighborhoodRowsBar =
+    selectionSource === SEL_NHOOD_BAR
+      ? rowsCheckboxOnly(sourceFilters)
+      : rowsForNeighborhoodViews(sourceFilters);
   const focusedRoomType = _selectedRoomType;
 
-  const hasContextFilter = Boolean(selectedBorough || _selectedRoomType || _selectedNeighborhood);
+  const hasContextFilter = Boolean(
+    _selectedBorough ||
+      _selectedRoomType ||
+      _selectedNeighborhood ||
+      _selectedHeatmapCell,
+  );
   chart2CardEl?.classList.toggle("chart-card--filtered", hasContextFilter);
 
   renderResponseStack("#chart1", aggregateResponseTimeByBorough(responseRows), {
     selectedBorough,
-    onBoroughClick: focusBorough,
+    dimSelection: dim(SEL_RESPONSE),
+    onBoroughClick: (b) => focusBorough(b, SEL_RESPONSE),
   });
 
   renderReviewDotPlot("#chart2", aggregateReviewScoresByRoomType(linkedRows), {
     checkedRoomTypes: sourceFilters.roomType,
     focusedRoomType,
+    dimSelection: dim(SEL_REVIEW),
     onRoomTypeClick: focusRoom,
   });
 
@@ -307,27 +372,31 @@ function updateCharts() {
   renderStackBarChart("#chart3", preferredData, {
     selectedBorough,
     focusedRoomType,
-    onBoroughClick: focusBorough,
+    dimSelection: dim(SEL_STACK),
+    onBoroughClick: (b) => focusBorough(b, SEL_STACK),
     onSegmentClick: focusBoroughAndRoom,
   });
   buildChart3Legend(preferredData.types);
 
-  updateChart4(sourceFilters);
-  updateChart5(sourceFilters, selectedBorough);
-  updateChart6(sourceFilters, selectedBorough);
+  updateChart4(sourceFilters, dim(SEL_HEATMAP));
 
-  const neighborhoodOptions = {
+  updateChart5(sourceFilters, selectedBorough, dim(SEL_PIE), selectionSource);
+  updateChart6(sourceFilters, selectedBorough, dim(SEL_INSTANT), selectionSource);
+
+  const neighborhoodOptsBase = {
     selectedNeighborhood: _selectedNeighborhood,
-    onNeighborhoodClick: focusNeighborhood,
+    selectedBorough: _selectedBorough,
   };
 
-  renderListingBubbleMap("#chart12", neighborhoodRows, sourceFilters.borough, {
-    ...neighborhoodOptions,
-    selectedBorough: _selectedBorough,
+  renderListingBubbleMap("#chart12", neighborhoodRowsMap, sourceFilters.borough, {
+    ...neighborhoodOptsBase,
+    dimSelection: dim(SEL_MAP),
+    onNeighborhoodClick: (n, b) => focusNeighborhood(n, b, SEL_MAP),
   });
-  renderNeighborhoodBarChart("#chart13", neighborhoodRows, sourceFilters.borough, {
-    ...neighborhoodOptions,
-    selectedBorough: _selectedBorough,
+  renderNeighborhoodBarChart("#chart13", neighborhoodRowsBar, sourceFilters.borough, {
+    ...neighborhoodOptsBase,
+    dimSelection: dim(SEL_NHOOD_BAR),
+    onNeighborhoodClick: (n, b) => focusNeighborhood(n, b, SEL_NHOOD_BAR),
   });
 
   buildBoroughLegend("shared-borough-legend");
@@ -362,19 +431,37 @@ function buildBoroughLegend(selector) {
     .join("");
 }
 
-function updateChart4(f = getSourceFilters()) {
+function updateChart4(f = getSourceFilters(), dimExternalRoomHighlight = false) {
   if (!allRows) return;
-  const heatmapRows = rowsForHeatmap(f);
+  const selectionSource = inferSelectionSource();
+  const heatmapSelf = selectionSource === SEL_HEATMAP;
+
+  const heatmapRows = heatmapSelf
+    ? rowsCheckboxOnly(f)
+    : rowsForHeatmap(f);
   const heatmapData = aggregateHeatmap(heatmapRows);
 
+  const accFilter =
+    heatmapSelf && _selectedHeatmapCell
+      ? "all"
+      : _selectedHeatmapCell
+        ? (_manualAccFilter ?? checkedValues(document.getElementById("filter-acc")))
+        : checkedValues(document.getElementById("filter-acc"));
+  const priceBinFilter =
+    heatmapSelf && _selectedHeatmapCell
+      ? "all"
+      : _selectedHeatmapCell
+        ? (_manualPriceBinFilter ?? checkedValues(document.getElementById("filter-price-bin")))
+        : checkedValues(document.getElementById("filter-price-bin"));
+
+  const roomFilter =
+    heatmapSelf && _selectedHeatmapCell ? f.roomType : heatmapRoomFilterForDisplay(f);
+
   renderHeatmap("#chart4", heatmapData, {
-    roomFilter: f.roomType,
-    accFilter: _selectedHeatmapCell
-      ? (_manualAccFilter ?? checkedValues(document.getElementById("filter-acc")))
-      : checkedValues(document.getElementById("filter-acc")),
-    priceBinFilter: _selectedHeatmapCell
-      ? (_manualPriceBinFilter ?? checkedValues(document.getElementById("filter-price-bin")))
-      : checkedValues(document.getElementById("filter-price-bin")),
+    dimExternalRoomHighlight,
+    roomFilter,
+    accFilter,
+    priceBinFilter,
     selectedCell: _selectedHeatmapCell,
     highlightRoom:
       !_selectedHeatmapCell && _selectedRoomType ? _selectedRoomType : null,
@@ -382,31 +469,58 @@ function updateChart4(f = getSourceFilters()) {
   });
 }
 
-function updateChart5(f = getSourceFilters(), selectedBorough = selectedBoroughFromFilters(f)) {
+/** Borough columns for pies / IB: one column when another chart drives borough; full strip when that chart is the selection source. */
+function boroughsToShowForSelection(f, selectionSource) {
+  if (selectionSource === SEL_PIE || selectionSource === SEL_INSTANT) {
+    return f.borough;
+  }
+  if (_selectedBorough && f.borough.includes(_selectedBorough)) return [_selectedBorough];
+  return f.borough;
+}
+
+function updateChart5(
+  f = getSourceFilters(),
+  selectedBorough = selectedBoroughFromFilters(f),
+  dimSelection = false,
+  selectionSource = inferSelectionSource(),
+) {
   if (!allRows) return;
-  const rows = rowsForAllBoroughComparison(f);
+  const rows =
+    selectionSource === SEL_PIE
+      ? rowsCheckboxOnly(f)
+      : rowsForAllBoroughComparison(f);
   const pieData = aggregateRatingDistributionByBorough(rows);
   renderRatingPie("#chart5", pieData, {
     selectedBorough,
-    visibleBoroughs: f.borough,
-    onBoroughClick: focusBorough,
+    dimSelection,
+    visibleBoroughs: boroughsToShowForSelection(f, selectionSource),
+    onBoroughClick: (b) => focusBorough(b, SEL_PIE),
   });
 }
 
-function updateChart6(f = getSourceFilters(), selectedBorough = selectedBoroughFromFilters(f)) {
+function updateChart6(
+  f = getSourceFilters(),
+  selectedBorough = selectedBoroughFromFilters(f),
+  dimSelection = false,
+  selectionSource = inferSelectionSource(),
+) {
   if (!allRows) return;
-  const rows = rowsForAllBoroughComparison(f);
+  const rows =
+    selectionSource === SEL_INSTANT
+      ? rowsCheckboxOnly(f)
+      : rowsForAllBoroughComparison(f);
   const ibData = aggregateInstantBookable(rows);
   const checkedRooms = new Set(f.roomType);
-  const checkedBoroughs = new Set(f.borough);
+  const checkedBoroughs = new Set(boroughsToShowForSelection(f, selectionSource));
   ibData.roomTypes = ibData.roomTypes.filter((rt) => checkedRooms.has(rt));
   ibData.boroughs = BOROUGHS.filter((b) => checkedBoroughs.has(b));
 
   renderInstantBookableChart("#chart6", ibData, {
     selectedBorough,
+    dimSelection,
     focusedRoomType: _selectedRoomType,
-    onBoroughClick: focusBorough,
-    onBoroughRoomClick: focusBoroughAndRoom,
+    onBoroughClick: (b) => focusBorough(b, SEL_INSTANT),
+    onBoroughRoomClick: (b, r) => focusBoroughAndRoom(b, r, SEL_INSTANT),
   });
 }
 
@@ -415,7 +529,6 @@ async function main() {
 
   try {
     allRows = await loadListings();
-    captureManualFilters();
     captureManualHeatmapFilters();
     updateCharts();
     buildBoroughLegend("shared-borough-legend");
@@ -423,8 +536,8 @@ async function main() {
     filterRoomEl?.addEventListener("change", (e) => {
       _selectedRoomType = null;
       _selectedHeatmapCell = null;
+      _lastBoroughRoomSource = null;
       handleFilterChange(e, filterRoomEl, () => {
-        captureManualFilters();
         updateCharts();
       });
     });
@@ -432,8 +545,10 @@ async function main() {
     filterBoroughEl?.addEventListener("change", (e) => {
       _selectedBorough = null;
       _selectedNeighborhood = null;
+      _lastBoroughChartSource = null;
+      _lastNeighborhoodChartSource = null;
+      _lastBoroughRoomSource = null;
       handleFilterChange(e, filterBoroughEl, () => {
-        captureManualFilters();
         updateCharts();
       });
     });
@@ -461,7 +576,6 @@ async function main() {
       if (_selectedHeatmapCell) {
         _selectedRoomType = null;
         _selectedHeatmapCell = null;
-        syncGlobalFiltersToSelection();
         updateCharts();
         return;
       }
@@ -475,7 +589,9 @@ async function main() {
       _selectedRoomType = null;
       _selectedNeighborhood = null;
       _selectedHeatmapCell = null;
-      captureManualFilters();
+      _lastBoroughChartSource = null;
+      _lastNeighborhoodChartSource = null;
+      _lastBoroughRoomSource = null;
       captureManualHeatmapFilters();
       updateCharts();
     });
