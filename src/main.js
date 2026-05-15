@@ -32,6 +32,8 @@ let _selectedNeighborhood = null;
 let _selectedHeatmapCell = null;
 let _manualAccFilter = null;
 let _manualPriceBinFilter = null;
+let _manualRoomFilter = null;
+let _manualBoroughFilter = null;
 
 /** Which chart set borough / neighbourhood selection (dim only on that chart). */
 let _lastBoroughChartSource = null;
@@ -134,13 +136,41 @@ function setCheckboxGroup(containerEl, selectedValues = "all") {
   }
 }
 
+function captureManualRoomFilter() {
+  _manualRoomFilter = checkedValues(filterRoomEl);
+}
+
+function captureManualBoroughFilter() {
+  _manualBoroughFilter = checkedValues(filterBoroughEl);
+}
+
+function captureManualCommonFilters() {
+  captureManualRoomFilter();
+  captureManualBoroughFilter();
+}
+
+function getManualCommonFilters() {
+  return {
+    roomType: _manualRoomFilter ?? checkedValues(filterRoomEl),
+    borough: _manualBoroughFilter ?? checkedValues(filterBoroughEl),
+  };
+}
+
+function syncCommonFiltersToActiveSelection() {
+  const activeRoom = _selectedRoomType;
+  const activeBorough = _selectedBorough ?? neighborhoodBorough(_selectedNeighborhood);
+
+  setCheckboxGroup(filterRoomEl, activeRoom ? [activeRoom] : (_manualRoomFilter ?? "all"));
+  setCheckboxGroup(filterBoroughEl, activeBorough ? [activeBorough] : (_manualBoroughFilter ?? "all"));
+}
+
 function captureManualHeatmapFilters() {
   _manualAccFilter = checkedValues(document.getElementById("filter-acc"));
   _manualPriceBinFilter = checkedValues(document.getElementById("filter-price-bin"));
 }
 
 function getSourceFilters() {
-  return getFilters();
+  return getManualCommonFilters();
 }
 
 function listingFilterForCharts(f) {
@@ -180,6 +210,21 @@ function syncHeatmapFiltersToSelection() {
 
   setCheckboxGroup(document.getElementById("filter-acc"), _manualAccFilter ?? "all");
   setCheckboxGroup(document.getElementById("filter-price-bin"), _manualPriceBinFilter ?? "all");
+}
+
+function clearHeatmapSelection({ clearLinkedRoom = true, restoreControls = true } = {}) {
+  const hadHeatmapSelection = Boolean(_selectedHeatmapCell);
+  _selectedHeatmapCell = null;
+
+  if (hadHeatmapSelection && clearLinkedRoom) {
+    _selectedRoomType = null;
+  }
+
+  if (restoreControls) {
+    syncHeatmapFiltersToSelection();
+  }
+
+  return hadHeatmapSelection;
 }
 
 function handleFilterChange(e, containerEl, callback = updateCharts) {
@@ -231,25 +276,26 @@ function selectedBoroughFromFilters(f) {
 function focusRoom(roomType) {
   _lastBoroughRoomSource = null;
   _selectedRoomType = _selectedRoomType === roomType ? null : roomType;
-  _selectedHeatmapCell = null;
-  syncHeatmapFiltersToSelection();
+  clearHeatmapSelection({ clearLinkedRoom: false });
+  syncCommonFiltersToActiveSelection();
   updateCharts();
 }
 
 function focusBorough(borough, source) {
   _lastBoroughRoomSource = null;
+  clearHeatmapSelection();
   _selectedBorough = _selectedBorough === borough ? null : borough;
   _selectedNeighborhood = null;
   if (_selectedBorough) _lastBoroughChartSource = source;
   else _lastBoroughChartSource = null;
+  syncCommonFiltersToActiveSelection();
   updateCharts();
 }
 
 function focusBoroughAndRoom(borough, roomType, source = SEL_STACK) {
   const isSameSelection = _selectedBorough === borough && _selectedRoomType === roomType;
   _selectedNeighborhood = null;
-  _selectedHeatmapCell = null;
-  syncHeatmapFiltersToSelection();
+  clearHeatmapSelection({ clearLinkedRoom: false });
   _selectedBorough = isSameSelection ? null : borough;
   _selectedRoomType = isSameSelection ? null : roomType;
   if (!isSameSelection && _selectedBorough) {
@@ -260,15 +306,18 @@ function focusBoroughAndRoom(borough, roomType, source = SEL_STACK) {
     _lastBoroughChartSource = null;
     _lastBoroughRoomSource = null;
   }
+  syncCommonFiltersToActiveSelection();
   updateCharts();
 }
 
 function focusNeighborhood(neighborhood, borough = null, source = SEL_MAP) {
   _lastBoroughRoomSource = null;
+  clearHeatmapSelection();
   _selectedNeighborhood = _selectedNeighborhood === neighborhood ? null : neighborhood;
   _selectedBorough = _selectedNeighborhood ? borough : null;
   if (_selectedNeighborhood) _lastNeighborhoodChartSource = source;
   else _lastNeighborhoodChartSource = null;
+  syncCommonFiltersToActiveSelection();
   updateCharts();
 }
 
@@ -282,6 +331,7 @@ function focusHeatmapCell(cell) {
   _lastBoroughRoomSource = null;
   _selectedHeatmapCell = sameCell ? null : cell;
   _selectedRoomType = sameCell ? null : cell.room;
+  syncCommonFiltersToActiveSelection();
   syncHeatmapFiltersToSelection();
   updateCharts();
 }
@@ -529,53 +579,67 @@ async function main() {
 
   try {
     allRows = await loadListings();
+    captureManualCommonFilters();
     captureManualHeatmapFilters();
     updateCharts();
     buildBoroughLegend("shared-borough-legend");
 
     filterRoomEl?.addEventListener("change", (e) => {
       _selectedRoomType = null;
-      _selectedHeatmapCell = null;
       _lastBoroughRoomSource = null;
+      clearHeatmapSelection({ clearLinkedRoom: false });
       handleFilterChange(e, filterRoomEl, () => {
+        captureManualRoomFilter();
         updateCharts();
       });
     });
 
     filterBoroughEl?.addEventListener("change", (e) => {
+      clearHeatmapSelection();
       _selectedBorough = null;
       _selectedNeighborhood = null;
       _lastBoroughChartSource = null;
       _lastNeighborhoodChartSource = null;
       _lastBoroughRoomSource = null;
       handleFilterChange(e, filterBoroughEl, () => {
+        captureManualBoroughFilter();
         updateCharts();
       });
     });
 
     document.getElementById("filter-acc")?.addEventListener("change", (e) => {
       handleFilterChange(e, document.getElementById("filter-acc"), () => {
-        _selectedHeatmapCell = null;
+        const hadHeatmapSelection = clearHeatmapSelection({ restoreControls: false });
         captureManualHeatmapFilters();
-        updateChart4();
+        if (hadHeatmapSelection) {
+          syncCommonFiltersToActiveSelection();
+          updateCharts();
+        } else {
+          updateChart4();
+        }
       });
     });
 
     document.getElementById("filter-price-bin")?.addEventListener("change", (e) => {
       handleFilterChange(e, document.getElementById("filter-price-bin"), () => {
-        _selectedHeatmapCell = null;
+        const hadHeatmapSelection = clearHeatmapSelection({ restoreControls: false });
         captureManualHeatmapFilters();
-        updateChart4();
+        if (hadHeatmapSelection) {
+          syncCommonFiltersToActiveSelection();
+          updateCharts();
+        } else {
+          updateChart4();
+        }
       });
     });
 
     document.getElementById("filter-heatmap-reset")?.addEventListener("click", () => {
       setCheckboxGroup(document.getElementById("filter-acc"), "all");
       setCheckboxGroup(document.getElementById("filter-price-bin"), "all");
+      const hadHeatmapSelection = clearHeatmapSelection({ restoreControls: false });
       captureManualHeatmapFilters();
-      if (_selectedHeatmapCell) {
-        _selectedRoomType = null;
-        _selectedHeatmapCell = null;
+      if (hadHeatmapSelection) {
+        syncCommonFiltersToActiveSelection();
         updateCharts();
         return;
       }
@@ -585,6 +649,8 @@ async function main() {
     document.getElementById("filter-reset")?.addEventListener("click", () => {
       setCheckboxGroup(filterRoomEl, "all");
       setCheckboxGroup(filterBoroughEl, "all");
+      setCheckboxGroup(document.getElementById("filter-acc"), "all");
+      setCheckboxGroup(document.getElementById("filter-price-bin"), "all");
       _selectedBorough = null;
       _selectedRoomType = null;
       _selectedNeighborhood = null;
@@ -592,6 +658,7 @@ async function main() {
       _lastBoroughChartSource = null;
       _lastNeighborhoodChartSource = null;
       _lastBoroughRoomSource = null;
+      captureManualCommonFilters();
       captureManualHeatmapFilters();
       updateCharts();
     });
