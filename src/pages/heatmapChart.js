@@ -61,6 +61,7 @@ export function renderHeatmap(containerSelector, data, options = {}) {
   const rooms = normalizeFilter(options.roomFilter, HEATMAP_ROOMS);
   const accGroups = normalizeFilter(options.accFilter, HEATMAP_ACC_GROUPS);
   const selectedCell = options.selectedCell ?? null;
+  const highlightRoom = options.highlightRoom ?? null;
   const onCellClick = options.onCellClick;
   let bins = [...HEATMAP_PRICE_BINS];
 
@@ -102,12 +103,20 @@ export function renderHeatmap(containerSelector, data, options = {}) {
   html += "</tr></thead><tbody>";
 
   rooms.forEach((room) => {
+    const rowRoomDimmed =
+      !selectedCell && highlightRoom && room !== highlightRoom;
     accGroups.forEach((acc, ai) => {
       html += "<tr>";
       if (ai === 0) {
-        html += `<td class="type-label" rowspan="${accGroups.length}">${room}</td>`;
+        const tlClass = ["type-label", rowRoomDimmed ? "is-dimmed" : ""]
+          .filter(Boolean)
+          .join(" ");
+        html += `<td class="${tlClass}" rowspan="${accGroups.length}">${room}</td>`;
       }
-      html += `<td class="acc-label">${acc}</td>`;
+      const accClass = ["acc-label", rowRoomDimmed ? "is-dimmed" : ""]
+        .filter(Boolean)
+        .join(" ");
+      html += `<td class="${accClass}">${acc}</td>`;
 
       bins.forEach((bin) => {
         const val = data.counts[room]?.[acc]?.[bin] ?? 0;
@@ -122,6 +131,7 @@ export function renderHeatmap(containerSelector, data, options = {}) {
         const cellClass = [
           isSelected ? "is-selected" : "",
           selectedCell && !isSelected ? "is-dimmed" : "",
+          rowRoomDimmed ? "is-dimmed" : "",
         ]
           .filter(Boolean)
           .join(" ");

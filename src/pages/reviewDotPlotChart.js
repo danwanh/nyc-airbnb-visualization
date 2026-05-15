@@ -8,15 +8,17 @@ import { CHROME } from "../utils/palette.js";
  */
 export function renderReviewDotPlot(containerSelector, data, options = {}) {
   const {
-    selectedRoomTypes = [],
-    focusedRoomTypeCsv = null,
+    checkedRoomTypes = null,
+    focusedRoomType = null,
     onRoomTypeClick,
   } = options;
-  const types = ROOM_TYPES;
-  const selectedSet = new Set(selectedRoomTypes);
-  const hasRoomFocus =
-    selectedSet.size > 0 && selectedSet.size < ROOM_TYPES.length;
-  const margin = { top: 22, right: 18, bottom: 44, left: 168 };
+  const checkedSet =
+    checkedRoomTypes && checkedRoomTypes.length
+      ? new Set(checkedRoomTypes)
+      : null;
+  const types = ROOM_TYPES.filter((t) => !checkedSet || checkedSet.has(t.csv));
+  const dimUnfocusedRoom = Boolean(focusedRoomType);
+  const margin = { top: 18, right: 18, bottom: 44, left: 168 };
   const W = 520;
   const emptyH = 100;
 
@@ -26,7 +28,7 @@ export function renderReviewDotPlot(containerSelector, data, options = {}) {
   const allVals = data.flatMap((d) =>
     types.map((t) => d[t.key]).filter((v) => Number.isFinite(v)),
   );
-  if (!data.length || !allVals.length) {
+  if (!types.length || !data.length || !allVals.length) {
     svg
       .attr("viewBox", `0 0 ${W} ${emptyH}`)
       .attr("width", "100%")
@@ -88,30 +90,13 @@ export function renderReviewDotPlot(containerSelector, data, options = {}) {
     .attr("stroke-width", 1.5)
     .attr("stroke-dasharray", "4,3");
 
-  {
-    const mx = x(median);
-    const pad = 28;
-    let anchor = "middle";
-    let tx = mx;
-    if (mx < pad) {
-      anchor = "start";
-      tx = 4;
-    } else if (mx > iW - pad) {
-      anchor = "end";
-      tx = iW - 4;
-    }
-    g.append("text")
-      .attr("x", tx)
-      .attr("y", 12)
-      .attr("text-anchor", anchor)
-      .attr("fill", CHROME.tick)
-      .attr("font-size", 10.5)
-      .attr("paint-order", "stroke")
-      .attr("stroke", "#fff")
-      .attr("stroke-width", 3)
-      .attr("stroke-linejoin", "round")
-      .text("Median");
-  }
+  g.append("text")
+    .attr("x", x(median))
+    .attr("y", iH + 16)
+    .attr("text-anchor", "middle")
+    .attr("fill", CHROME.tick)
+    .attr("font-size", 10.5)
+    .text("Median");
 
   g.append("g")
     .call(d3.axisBottom(x).ticks(8).tickSize(iH).tickFormat(""))
@@ -136,23 +121,18 @@ export function renderReviewDotPlot(containerSelector, data, options = {}) {
   });
 
   types.forEach((type) => {
-    const isChartFocus = focusedRoomTypeCsv && focusedRoomTypeCsv === type.csv;
-    const baseR = isChartFocus ? 9 : 8;
-
     g.selectAll(null)
       .data(data.filter((d) => Number.isFinite(d[type.key])))
       .join("circle")
       .attr("cx", (d) => x(d[type.key]))
       .attr("cy", (d) => y(d.dim) + y.bandwidth() / 2)
-      .attr("r", baseR)
+      .attr("r", 8)
       .attr("fill", type.color)
       .attr("fill-opacity", () =>
-        hasRoomFocus && !selectedSet.has(type.csv) ? 0.28 : 0.92,
+        dimUnfocusedRoom && type.csv !== focusedRoomType ? 0.28 : 0.92,
       )
-      .attr("stroke", () =>
-        isChartFocus ? CHROME.dotStrokeHover : CHROME.dotStroke,
-      )
-      .attr("stroke-width", () => (isChartFocus ? 3 : 2))
+      .attr("stroke", CHROME.dotStroke)
+      .attr("stroke-width", 2)
       .attr("cursor", onRoomTypeClick ? "pointer" : "default")
       .on("mouseenter", (event, d) => {
         const n = d[`_n_${type.key}`] ?? "NA";
@@ -164,29 +144,29 @@ export function renderReviewDotPlot(containerSelector, data, options = {}) {
               { label: "Mean", value: d[type.key].toFixed(2) },
               { label: "Number of listings", value: n },
             ],
-            note: onRoomTypeClick
-              ? focusedRoomTypeCsv === type.csv
-                ? "Click again: reset dashboard"
-                : "Click: filter by this room type"
-              : "",
           }),
           event.clientX,
           event.clientY,
         );
-        d3.select(event.currentTarget)
-          .attr("r", baseR + 2)
-          .attr("stroke", CHROME.dotStrokeHover);
+        const isFocusedType =
+          !dimUnfocusedRoom || type.csv === focusedRoomType;
+        if (isFocusedType) {
+          d3.select(event.currentTarget)
+            .attr("r", 10)
+            .attr("stroke", CHROME.dotStrokeHover);
+        }
       })
       .on("mousemove", (event) =>
         chartTooltip.move(event.clientX, event.clientY),
       )
       .on("mouseleave", (event) => {
         chartTooltip.hide();
+        const op =
+          dimUnfocusedRoom && type.csv !== focusedRoomType ? 0.28 : 0.92;
         d3.select(event.currentTarget)
-          .attr("r", baseR)
-          .attr("stroke", () =>
-            isChartFocus ? CHROME.dotStrokeHover : CHROME.dotStroke,
-          );
+          .attr("r", 8)
+          .attr("stroke", CHROME.dotStroke)
+          .attr("fill-opacity", op);
       })
       .on("click", (event) => {
         event.stopPropagation();

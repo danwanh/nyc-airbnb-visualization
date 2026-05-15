@@ -26,6 +26,7 @@ export function renderInstantBookableChart(
 ) {
   const {
     selectedBorough = null,
+    focusedRoomType = null,
     onBoroughClick,
     onBoroughRoomClick,
   } = options;
@@ -97,6 +98,9 @@ export function renderInstantBookableChart(
     const py = margin.top;
     const panel = svg.append("g").attr("transform", `translate(${px},${py})`);
 
+    const panelTitleOpacity =
+      focusedRoomType && rt !== focusedRoomType ? 0.28 : 1;
+
     // Panel title
     panel
       .append("text")
@@ -106,6 +110,7 @@ export function renderInstantBookableChart(
       .attr("fill", CHROME.caption)
       .attr("font-size", 12)
       .attr("font-weight", 600)
+      .attr("opacity", panelTitleOpacity)
       .text(rt);
 
     const plotG = panel
@@ -142,9 +147,11 @@ export function renderInstantBookableChart(
       const bx = xScale(borough);
       const bw = xScale.bandwidth();
 
-      // Opacity for dimming non-selected boroughs
-      const barOpacity =
+      const boroughDim =
         selectedBorough && selectedBorough !== borough ? 0.25 : 1;
+      const roomPanelDim =
+        focusedRoomType && rt !== focusedRoomType ? 0.28 : 1;
+      const barOpacity = Math.min(boroughDim, roomPanelDim);
 
       // Bottom segment: notInstant
       const niH = yScale(0) - yScale(cell.notInstant);

@@ -59,7 +59,11 @@ export async function renderListingBubbleMap(
   boroughFilter = "all",
   options = {},
 ) {
-  const { selectedNeighborhood = null, onNeighborhoodClick } = options;
+  const {
+    selectedNeighborhood = null,
+    selectedBorough = null,
+    onNeighborhoodClick,
+  } = options;
   const svg = d3.select(selector);
   if (svg.empty()) return;
   const svgEl = svg.node();
@@ -154,18 +158,36 @@ export async function renderListingBubbleMap(
     .attr("r", (d) => baseRScale(d.count))
     .attr("fill", (d) => BOROUGH_COLORS[d.borough] || "#888")
     .attr("fill-opacity", (d) => {
-      if (!selectedNeighborhood) return 0.72;
-      return d.neighbourhood === selectedNeighborhood ? 0.95 : 0.15;
+      if (selectedNeighborhood) {
+        return d.neighbourhood === selectedNeighborhood ? 0.95 : 0.15;
+      }
+      if (selectedBorough && d.borough !== selectedBorough) return 0.15;
+      return 0.72;
     })
-    .attr("stroke", (d) =>
-      d.neighbourhood === selectedNeighborhood ? "#0f172a" : "#fff",
-    )
-    .attr("stroke-width", (d) =>
-      d.neighbourhood === selectedNeighborhood ? 1.5 : 0.6,
-    )
+    .attr("stroke", (d) => {
+      if (selectedNeighborhood) {
+        return d.neighbourhood === selectedNeighborhood ? "#0f172a" : "#fff";
+      }
+      if (selectedBorough && d.borough !== selectedBorough) return "#fff";
+      return "#fff";
+    })
+    .attr("stroke-width", (d) => {
+      if (selectedNeighborhood) {
+        return d.neighbourhood === selectedNeighborhood ? 1.5 : 0.6;
+      }
+      if (selectedBorough && d.borough !== selectedBorough) return 0.6;
+      return 0.6;
+    })
     .style("cursor", "pointer")
     .on("mouseenter", function (event, d) {
-      if (!selectedNeighborhood || d.neighbourhood === selectedNeighborhood) {
+      const isFocusNeighborhood =
+        selectedNeighborhood && d.neighbourhood === selectedNeighborhood;
+      const isFocusBoroughOnly =
+        !selectedNeighborhood &&
+        selectedBorough &&
+        d.borough === selectedBorough;
+      const isUnrestricted = !selectedNeighborhood && !selectedBorough;
+      if (isFocusNeighborhood || isFocusBoroughOnly || isUnrestricted) {
         d3.select(this).attr("fill-opacity", 1).attr("stroke", "#0f172a");
       }
       chartTooltip.show(
@@ -185,13 +207,20 @@ export async function renderListingBubbleMap(
     })
     .on("mouseleave", function (event, d) {
       d3.select(this)
-        .attr("fill-opacity", (d) => {
-          if (!selectedNeighborhood) return 0.72;
-          return d.neighbourhood === selectedNeighborhood ? 0.95 : 0.15;
+        .attr("fill-opacity", () => {
+          if (selectedNeighborhood) {
+            return d.neighbourhood === selectedNeighborhood ? 0.95 : 0.15;
+          }
+          if (selectedBorough && d.borough !== selectedBorough) return 0.15;
+          return 0.72;
         })
-        .attr("stroke", (d) =>
-          d.neighbourhood === selectedNeighborhood ? "#0f172a" : "#fff",
-        );
+        .attr("stroke", () => {
+          if (selectedNeighborhood) {
+            return d.neighbourhood === selectedNeighborhood ? "#0f172a" : "#fff";
+          }
+          if (selectedBorough && d.borough !== selectedBorough) return "#fff";
+          return "#fff";
+        });
       chartTooltip.hide();
     })
     .on("click", function (event, d) {
@@ -229,9 +258,14 @@ export async function renderListingBubbleMap(
         .attr("r", (d) => baseRScale(d.count) * radiusCorrection)
         .attr(
           "stroke-width",
-          (d) =>
-            (d.neighbourhood === selectedNeighborhood ? 1.5 : 0.6) *
-            radiusCorrection,
+          (d) => {
+            const thick = selectedNeighborhood
+              ? d.neighbourhood === selectedNeighborhood
+              : selectedBorough
+                ? d.borough === selectedBorough
+                : false;
+            return (thick ? 1.5 : 0.6) * radiusCorrection;
+          },
         );
 
       // Update label positions (below bubble) and visibility

@@ -1,8 +1,5 @@
 import * as d3 from "d3";
-import {
-  ROOM_TYPE_COLORS,
-  ROOM_TYPE_STACK_ORDER,
-} from "../utils/aggregates.js";
+import { ROOM_TYPE_COLORS } from "../utils/aggregates.js";
 import { chartTooltip, formatTooltip } from "../components/tooltip.js";
 import { CHROME } from "../utils/palette.js";
 
@@ -17,28 +14,25 @@ import { CHROME } from "../utils/palette.js";
 export function renderStackBarChart(containerSelector, data, options = {}) {
   const {
     selectedBorough = null,
-    selectedRoomTypes = [],
+    focusedRoomType = null,
     onBoroughClick,
     onSegmentClick,
   } = options;
-  const selectedRoomSet = new Set(selectedRoomTypes);
-  const hasRoomFocus =
-    selectedRoomSet.size > 0 &&
-    selectedRoomSet.size < ROOM_TYPE_STACK_ORDER.length;
   const { hoods, types, pct } = data;
 
   const segmentOpacity = (d, roomType) => {
     const boroughDimmed = selectedBorough && d.data.hood !== selectedBorough;
-    const roomDimmed = hasRoomFocus && !selectedRoomSet.has(roomType);
+    const roomDimmed =
+      Boolean(focusedRoomType) && roomType !== focusedRoomType;
     return boroughDimmed || roomDimmed ? 0.28 : 1;
   };
 
   const isSelectedSegment = (d, roomType) =>
     Boolean(
       selectedBorough &&
-      hasRoomFocus &&
+      focusedRoomType &&
       d.data.hood === selectedBorough &&
-      selectedRoomSet.has(roomType),
+      roomType === focusedRoomType,
     );
 
   const svg = d3.select(containerSelector);

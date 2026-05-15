@@ -62,7 +62,11 @@ export function renderNeighborhoodBarChart(
   boroughFilter = "all",
   options = {},
 ) {
-  const { selectedNeighborhood = null, onNeighborhoodClick } = options;
+  const {
+    selectedNeighborhood = null,
+    selectedBorough = null,
+    onNeighborhoodClick,
+  } = options;
   const data = aggregateMedianPrice(rows, boroughFilter);
   const svgEl = d3.select(selector).node();
   if (!svgEl) return;
@@ -194,18 +198,48 @@ export function renderNeighborhoodBarChart(
     .attr("height", 0)
     .attr("fill", (d) => BOROUGH_COLORS[d.borough] || "#70ad47")
     .attr("fill-opacity", (d) => {
-      if (!selectedNeighborhood) return 0.85;
-      return d.neighbourhood === selectedNeighborhood ? 1.0 : 0.2;
+      if (selectedNeighborhood) {
+        return d.neighbourhood === selectedNeighborhood ? 1.0 : 0.2;
+      }
+      if (selectedBorough && d.borough !== selectedBorough) return 0.2;
+      return 0.85;
     })
-    .attr("stroke", (d) =>
-      d.neighbourhood === selectedNeighborhood ? "#0f172a" : "none",
-    )
-    .attr("stroke-width", (d) =>
-      d.neighbourhood === selectedNeighborhood ? 1.5 : 0,
-    )
+    .attr("stroke", (d) => {
+      if (selectedNeighborhood && d.neighbourhood === selectedNeighborhood) {
+        return "#0f172a";
+      }
+      if (
+        !selectedNeighborhood &&
+        selectedBorough &&
+        d.borough === selectedBorough
+      ) {
+        return "#0f172a";
+      }
+      return "none";
+    })
+    .attr("stroke-width", (d) => {
+      if (selectedNeighborhood && d.neighbourhood === selectedNeighborhood) {
+        return 1.5;
+      }
+      if (
+        !selectedNeighborhood &&
+        selectedBorough &&
+        d.borough === selectedBorough
+      ) {
+        return 1.5;
+      }
+      return 0;
+    })
     .style("cursor", "pointer")
     .on("mouseenter", function (event, d) {
-      if (!selectedNeighborhood || d.neighbourhood === selectedNeighborhood) {
+      const isFocusNeighborhood =
+        selectedNeighborhood && d.neighbourhood === selectedNeighborhood;
+      const isFocusBoroughBar =
+        !selectedNeighborhood &&
+        selectedBorough &&
+        d.borough === selectedBorough;
+      const isUnrestricted = !selectedNeighborhood && !selectedBorough;
+      if (isFocusNeighborhood || isFocusBoroughBar || isUnrestricted) {
         d3.select(this).attr("fill-opacity", 1);
       }
       chartTooltip.show(
@@ -228,9 +262,12 @@ export function renderNeighborhoodBarChart(
       chartTooltip.move(event.clientX, event.clientY);
     })
     .on("mouseleave", function (event, d) {
-      d3.select(this).attr("fill-opacity", (d) => {
-        if (!selectedNeighborhood) return 0.85;
-        return d.neighbourhood === selectedNeighborhood ? 1.0 : 0.2;
+      d3.select(this).attr("fill-opacity", () => {
+        if (selectedNeighborhood) {
+          return d.neighbourhood === selectedNeighborhood ? 1.0 : 0.2;
+        }
+        if (selectedBorough && d.borough !== selectedBorough) return 0.2;
+        return 0.85;
       });
       chartTooltip.hide();
     })

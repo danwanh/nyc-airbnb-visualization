@@ -19,7 +19,7 @@ const BOROUGH_ORDER = [
 ];
 
 /**
- * Render 5 small-multiple pie charts — one per NYC borough — showing
+ * Render small-multiple pie charts — one column per visible borough — showing
  * rating distribution (high / mid / low).
  *
  * @param {string} containerSelector  CSS selector of the <svg>
@@ -28,25 +28,67 @@ const BOROUGH_ORDER = [
  *   aggregateRatingDistributionByBorough.
  * @param {object} [options]
  * @param {string|null} [options.selectedBorough]  Currently selected borough (for highlighting)
+ * @param {string[]|null} [options.visibleBoroughs]  If set, only these boroughs are drawn (checkbox filter)
  * @param {function}     [options.onBoroughClick]   Called with borough name when a pie is clicked
  */
 export function renderRatingPie(containerSelector, data, options = {}) {
-  const { selectedBorough = null, onBoroughClick } = options;
-  /* ── Layout constants ── */
-  const COLS = 5;
-  const PIE_RADIUS = 70;
-  const CELL_W = 180; // width per borough column
+  const {
+    selectedBorough = null,
+    visibleBoroughs = null,
+    onBoroughClick,
+  } = options;
+
+  const visibleSet =
+    visibleBoroughs != null && visibleBoroughs.length
+      ? new Set(visibleBoroughs)
+      : null;
+  const boroughsToShow = visibleSet
+    ? BOROUGH_ORDER.filter((b) => visibleSet.has(b))
+    : [...BOROUGH_ORDER];
+
+  const COLS = Math.max(1, boroughsToShow.length);
+
+  /** Column width for borough layout (unchanged for multi-column). */
+  const CELL_W = 180;
+
+  /** Smaller pies when few boroughs; full size when 4–5 are shown. */
+  let pieRadius = 70;
+  if (COLS === 1) pieRadius = 50;
+  else if (COLS === 2) pieRadius = 56;
+  else if (COLS === 3) pieRadius = 62;
+
+  const layoutW = COLS * CELL_W;
+  /** Wider viewBox when few columns so `width:100%` does not upscale one tiny pie. */
+  const MIN_VIEWBOX_W = 480;
+  const W = Math.max(layoutW, MIN_VIEWBOX_W);
+  const padX = (W - layoutW) / 2;
+
   const TITLE_H = 22; // space for borough title
-  const PIE_AREA_H = PIE_RADIUS * 2 + 10; // vertical space for pie
+  const PIE_AREA_H = pieRadius * 2 + 10; // vertical space for pie
   const LEGEND_H = 30; // bottom legend row
   const PAD_TOP = 10;
   const PAD_BOTTOM = 8;
 
-  const W = CELL_W * COLS;
   const H = PAD_TOP + TITLE_H + PIE_AREA_H + LEGEND_H + PAD_BOTTOM;
 
   const svg = d3.select(containerSelector);
   svg.selectAll("*").remove();
+
+  if (visibleBoroughs != null && visibleBoroughs.length === 0) {
+    svg
+      .attr("viewBox", `0 0 520 120`)
+      .attr("width", "100%")
+      .attr("preserveAspectRatio", "xMidYMid meet")
+      .attr("style", "display:block;max-width:100%;height:auto")
+      .append("text")
+      .attr("x", 260)
+      .attr("y", 60)
+      .attr("text-anchor", "middle")
+      .attr("fill", CHROME.tick)
+      .attr("font-size", 13)
+      .text("Select at least one borough.");
+    return;
+  }
 
   svg
     .attr("viewBox", `0 0 ${W} ${H}`)
@@ -59,13 +101,13 @@ export function renderRatingPie(containerSelector, data, options = {}) {
     .value((d) => d.count)
     .sort(null);
 
-  const arc = d3.arc().innerRadius(0).outerRadius(PIE_RADIUS);
+  const arc = d3.arc().innerRadius(0).outerRadius(pieRadius);
 
   const MIN_ANGLE = (20 * Math.PI) / 180; // ~0.349 rad
 
-  /* ── Render each borough ── */
-  BOROUGH_ORDER.forEach((borough, i) => {
-    const cx = i * CELL_W + CELL_W / 2;
+  /* ── Render each visible borough (checkbox filter) ── */
+  boroughsToShow.forEach((borough, i) => {
+    const cx = padX + i * CELL_W + CELL_W / 2;
     const cy = PAD_TOP + TITLE_H + PIE_AREA_H / 2;
 
     const boroughData = data[borough] || [];
@@ -111,6 +153,7 @@ export function renderRatingPie(containerSelector, data, options = {}) {
       .attr("opacity", isDimmed ? 0.3 : 1);
 
     const arcs = pie(boroughData);
+    const labelFont = Math.max(8, Math.round(10 * (pieRadius / 70)));
 
     // Wedges
     g.selectAll("path")
@@ -154,7 +197,7 @@ export function renderRatingPie(containerSelector, data, options = {}) {
       .attr("text-anchor", "middle")
       .attr("dy", "0.35em")
       .attr("fill", "#fff")
-      .attr("font-size", 10)
+      .attr("font-size", labelFont)
       .attr("font-weight", 600)
       .attr("pointer-events", "none")
       .text((d) => {
